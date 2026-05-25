@@ -24,16 +24,30 @@ export function Hero() {
         {siteConfig.description}
       </p>
 
-      <div className="mt-8 flex items-center justify-center gap-3">
-        <Link href="/products" className={cn(buttonVariants({ size: "lg" }))}>
-          상품 보기
-        </Link>
+      <div className="mt-8 flex flex-col items-center gap-3">
+        {/* 진입 미끼: 매일 무료 운세 */}
         <Link
-          href="#how-it-works"
-          className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
+          href="/signup"
+          className="inline-flex items-center gap-2 rounded-full bg-rose-100 px-5 h-11 text-[15px] font-medium text-rose-700 hover:bg-rose-200 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300 focus-visible:ring-offset-2"
         >
-          작동 방식
+          <span className="inline-flex items-center justify-center rounded-full bg-rose-500 px-2 h-5 text-[10px] font-semibold tracking-wide text-white">
+            FREE
+          </span>
+          매일 무료 운세 받기 ✨
         </Link>
+
+        {/* 기존 2개 버튼 */}
+        <div className="flex items-center justify-center gap-3">
+          <Link href="/products" className={cn(buttonVariants({ size: "lg" }))}>
+            상품 보기
+          </Link>
+          <Link
+            href="#how-it-works"
+            className={cn(buttonVariants({ size: "lg", variant: "outline" }))}
+          >
+            작동 방식
+          </Link>
+        </div>
       </div>
     </section>
   );
