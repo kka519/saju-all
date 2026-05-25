@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import { Toaster } from "sonner";
 import { siteConfig, businessInfo } from "@/config/site";
@@ -39,7 +40,14 @@ function SiteHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
   return (
     <header className="border-b border-hairline bg-canvas">
       <div className="container flex h-14 items-center justify-between">
-        <Link href="/" className="font-semibold text-[15px] text-ink">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-[15px] text-ink">
+          <Image
+            src="/characters/doori/doori-magic.png"
+            alt="두리"
+            width={40}
+            height={40}
+            className="h-8 w-8 md:h-9 md:w-9 rounded-full flex-shrink-0"
+          />
           {siteConfig.name}
         </Link>
         <nav className="flex items-center gap-6 text-[13px] font-medium">
