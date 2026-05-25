@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
 import { siteConfig } from "@/config/site";
@@ -8,6 +9,14 @@ import { cn } from "@/lib/utils";
 export function Hero() {
   return (
     <section className="container py-24 md:py-32 text-center">
+      <Image
+        src="/characters/doori/doori-saju.png"
+        alt="두리"
+        width={220}
+        height={220}
+        priority
+        className="mx-auto mb-8"
+      />
       <h1 className="text-[34px] md:text-[44px] font-semibold tracking-tight leading-[1.1] text-ink">
         {siteConfig.tagline}
       </h1>
