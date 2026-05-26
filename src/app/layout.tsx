@@ -46,8 +46,10 @@ function SiteHeader({ isLoggedIn }: { isLoggedIn: boolean }) {
     <header className="sticky top-0 z-20 border-b border-night-border bg-night-primary/70 backdrop-blur-md">
       <div className="container flex h-14 items-center justify-between">
         <Link href="/" className="flex items-center gap-2 font-semibold text-[15px] text-night-fg">
+          {/* 헤더는 32~36px 작은 사이즈 — alpha-keyed 버전은 픽셀 평균화로 실루엣처럼 보여,
+              흰 배경 유지하는 solid 버전 사용. Hero/큰 컷은 alpha 버전 그대로. */}
           <Image
-            src="/characters/doori/doori-magic.png"
+            src="/characters/doori/doori-magic-solid.png"
             alt="두리"
             width={40}
             height={40}
