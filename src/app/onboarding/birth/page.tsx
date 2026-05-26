@@ -28,6 +28,7 @@ export default function BirthPage() {
   const [hour, setHour] = useState("");
   const [minute, setMinute] = useState("");
   const [hourUnknown, setHourUnknown] = useState(false);
+  const [calendar, setCalendar] = useState<"solar" | "lunar">("solar");
 
   // 임신 중 부모가 미리 사주를 보고 싶을 수 있으니 다음 해(현재년+1)까지 허용.
   const MAX_YEAR = useMemo(() => new Date().getFullYear() + 1, []);
@@ -47,6 +48,7 @@ export default function BirthPage() {
     if (d.birthHour) setHour(d.birthHour);
     if (d.birthMinute) setMinute(d.birthMinute);
     if (d.hourUnknown) setHourUnknown(d.hourUnknown);
+    if (d.calendar) setCalendar(d.calendar);
   }, []);
 
   const canProceed = !!(year && month && day);
@@ -60,6 +62,7 @@ export default function BirthPage() {
       birthHour: hourUnknown ? undefined : hour || undefined,
       birthMinute: hourUnknown ? undefined : minute || undefined,
       hourUnknown,
+      calendar,
     });
     router.push("/onboarding/gender");
   }
@@ -169,6 +172,28 @@ export default function BirthPage() {
             />
             시간 모름
           </label>
+        </div>
+
+        {/* 양력/음력 — 생년월일에 종속된 옵션이라 같은 화면에 통합 (8개 화면 흐름) */}
+        <div className="space-y-2">
+          <span className="block text-sm text-night-fg-soft">달력</span>
+          <div className="grid grid-cols-2 gap-2">
+            {(["solar", "lunar"] as const).map((c) => (
+              <button
+                type="button"
+                key={c}
+                onClick={() => setCalendar(c)}
+                aria-pressed={calendar === c}
+                className={`h-11 rounded-full border text-sm transition-colors ${
+                  calendar === c
+                    ? "border-starlight bg-starlight text-night-primary"
+                    : "border-night-border text-night-fg hover:border-starlight"
+                }`}
+              >
+                {c === "solar" ? "양력" : "음력"}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
