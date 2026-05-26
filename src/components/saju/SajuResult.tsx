@@ -6,11 +6,11 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
+import { SectionMarkdown } from "@/components/saju/SectionMarkdown";
 import type { BirthInfo, SimpleMyeongsik } from "@/lib/saju/saju-api";
 import { dooriCardSrc, getResultDoori, type ResultSection } from "@/lib/saju/doori";
+import { SAJU_LOADING_MESSAGES } from "@/lib/loading-messages";
 
 type Sections = {
   greeting: string;
@@ -34,18 +34,7 @@ type ApiResponse =
       detail?: unknown;
     };
 
-const LOADING_MESSAGES = [
-  "두리가 만세력을 펼치고 있어요...",
-  "별빛을 모으는 중이에요...",
-  "그대의 사주를 두리가 살짝 들여다보고 있어요...",
-  "13년 명리학을 두리가 짚어보고 있어요...",
-  "별빛 사이로 그대 사주가 떠오르고 있어요...",
-  "두리가 명리학 책장을 넘기는 중이에요...",
-  "잠깐만요, 두리가 한 번 더 살펴볼게요...",
-  "그대 일주를 두리가 가만히 매만지는 중이에요...",
-  "오행이 어떻게 어우러지는지 두리가 보고 있어요...",
-  "조금만 더 기다려 주세요, 곧 풀어드릴게요...",
-];
+// 로딩 메시지는 src/lib/loading-messages.ts 의 SAJU_LOADING_MESSAGES 사용.
 
 const SECTION_META: { key: keyof Sections & ResultSection; label: string }[] = [
   { key: "greeting", label: "두리의 인사" },
@@ -108,7 +97,7 @@ export function SajuResult({
   useEffect(() => {
     if (state !== "loading") return;
     const t = setInterval(() => {
-      setMsgIndex((i) => (i + 1) % LOADING_MESSAGES.length);
+      setMsgIndex((i) => (i + 1) % SAJU_LOADING_MESSAGES.length);
     }, 4000);
     return () => clearInterval(t);
   }, [state]);
@@ -136,7 +125,7 @@ export function SajuResult({
           className="mt-5 text-sm text-night-fg-soft transition-opacity duration-500"
           aria-live="polite"
         >
-          {LOADING_MESSAGES[msgIndex]}
+          {SAJU_LOADING_MESSAGES[msgIndex]}
         </p>
         <p className="mt-2 text-xs text-night-fg-muted">
           만세력 + 풀이 생성에 보통 20~30초가 걸려요.
@@ -248,51 +237,6 @@ export function SajuResult({
           </section>
         );
       })}
-    </div>
-  );
-}
-
-// 다크 톤 friendly markdown 렌더 — prose-saju(라이트용)와 분리.
-// arbitrary variant 의존 없이 ReactMarkdown components prop 으로 명시적 스타일.
-// 2-B 에서 prose-saju 다크 변종 도입 후 통합 예정.
-function SectionMarkdown({ markdown }: { markdown: string }) {
-  return (
-    <div className="text-sm leading-7 text-night-fg-soft">
-      <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
-        components={{
-          p: ({ children }) => <p className="my-2">{children}</p>,
-          strong: ({ children }) => (
-            <strong className="font-semibold text-night-fg">{children}</strong>
-          ),
-          em: ({ children }) => <em className="italic">{children}</em>,
-          h2: ({ children }) => (
-            <h2 className="mt-4 mb-2 text-base font-semibold text-night-fg">{children}</h2>
-          ),
-          h3: ({ children }) => (
-            <h3 className="mt-3 mb-1.5 text-sm font-semibold text-night-fg">{children}</h3>
-          ),
-          ul: ({ children }) => (
-            <ul className="my-2 list-disc space-y-1 pl-5">{children}</ul>
-          ),
-          ol: ({ children }) => (
-            <ol className="my-2 list-decimal space-y-1 pl-5">{children}</ol>
-          ),
-          li: ({ children }) => <li className="my-1">{children}</li>,
-          code: ({ children }) => (
-            <code className="rounded bg-night-elevated px-1.5 py-0.5 text-[0.9em] text-night-fg">
-              {children}
-            </code>
-          ),
-          a: ({ href, children }) => (
-            <a href={href} className="text-starlight underline hover:text-starlight-soft">
-              {children}
-            </a>
-          ),
-        }}
-      >
-        {markdown}
-      </ReactMarkdown>
     </div>
   );
 }
