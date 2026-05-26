@@ -15,6 +15,7 @@ type SearchParams = Promise<{
   y?: string; m?: string; d?: string;
   h?: string; min?: string;
   cal?: string; g?: string;
+  slug?: string;
 }>;
 
 const DEFAULTS = {
@@ -36,9 +37,12 @@ export default async function DemoPage({ searchParams }: { searchParams: SearchP
     gender: (sp.g === "female" ? "female" : "male") as "male" | "female",
   };
 
+  // /demo 슬러그 (검증용). 기본 basic-saju. love-saju 등 임의 슬러그 전달 시 두리 매핑 분기.
+  const slug = sp.slug || "basic-saju";
+
   // 입력 폼이 URL 기반(GET)이라 searchParams가 바뀔 때마다 SajuResult가 새로 마운트되도록
-  // birth params 기반 key를 사용.
-  const resultKey = `${birthInfo.birthYear}-${birthInfo.birthMonth}-${birthInfo.birthDay}-${birthInfo.birthHour ?? "X"}-${birthInfo.birthMinute ?? "X"}-${birthInfo.calendarType}-${birthInfo.gender}`;
+  // birth params + slug 기반 key를 사용.
+  const resultKey = `${slug}-${birthInfo.birthYear}-${birthInfo.birthMonth}-${birthInfo.birthDay}-${birthInfo.birthHour ?? "X"}-${birthInfo.birthMinute ?? "X"}-${birthInfo.calendarType}-${birthInfo.gender}`;
 
   return (
     <div className="container py-12 max-w-3xl text-night-fg">
@@ -55,8 +59,8 @@ export default async function DemoPage({ searchParams }: { searchParams: SearchP
       <SajuResult
         key={resultKey}
         birthInfo={birthInfo}
-        slug="basic-saju"
-        productName="데모 — 기본 사주 풀이"
+        slug={slug}
+        productName={`데모 — ${slug}`}
         concerns={[]}
       />
 

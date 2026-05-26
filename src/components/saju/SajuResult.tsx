@@ -10,6 +10,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
 import type { BirthInfo, SimpleMyeongsik } from "@/lib/saju/saju-api";
+import { dooriCardSrc, getResultDoori, type ResultSection } from "@/lib/saju/doori";
 
 type Sections = {
   greeting: string;
@@ -46,7 +47,7 @@ const LOADING_MESSAGES = [
   "조금만 더 기다려 주세요, 곧 풀어드릴게요...",
 ];
 
-const SECTION_META: { key: keyof Sections; label: string }[] = [
+const SECTION_META: { key: keyof Sections & ResultSection; label: string }[] = [
   { key: "greeting", label: "두리의 인사" },
   { key: "saju", label: "사주 원국 요약" },
   { key: "coreReading", label: "핵심 풀이" },
@@ -117,7 +118,7 @@ export function SajuResult({
       <div className="mt-10 rounded-lg border border-night-border bg-night-secondary p-10 text-center">
         <div className="inline-block">
           <Image
-            src="/characters/doori/doori-magic.png"
+            src="/characters/doori/doori-magic-solid.png"
             alt="두리"
             width={96}
             height={96}
@@ -179,7 +180,7 @@ export function SajuResult({
   const { sections, myeongsik, meta } = data;
 
   return (
-    <div className="mt-10 space-y-8">
+    <div className="mt-10 space-y-6">
       {/* 메타 배지 */}
       <div className="flex flex-wrap gap-2 text-xs font-mono">
         <span className="inline-flex items-center gap-1.5 px-3 h-7 rounded-full border border-starlight/40 text-starlight">
@@ -196,6 +197,22 @@ export function SajuResult({
         ) : null}
       </div>
 
+      {/* 도입 한마디 — 명식 표 부담 완화 (입문자 배려) */}
+      <div className="rounded-2xl border border-night-border bg-night-secondary p-5 md:p-6 flex items-center gap-4">
+        <Image
+          src="/characters/doori/doori-magic-solid.png"
+          alt="두리"
+          width={56}
+          height={56}
+          className="shrink-0 rounded-full ring-1 ring-starlight/30"
+        />
+        <p className="text-sm md:text-base text-night-fg-soft leading-relaxed">
+          두리가 그대의 사주를 살짝 펼쳐봤어요 <span className="text-starlight">✨</span>
+          <br />
+          아래 명식부터 차근차근 풀어드릴게요.
+        </p>
+      </div>
+
       {/* 명식 표 */}
       <section>
         <h2 className="text-xs font-mono uppercase tracking-wider text-night-fg-muted mb-3">
@@ -204,18 +221,29 @@ export function SajuResult({
         <MyeongsikTable myeongsik={myeongsik} />
       </section>
 
-      {/* 5섹션 카드 — 2-A 단계는 minimal 디자인, 2-B에서 본격 */}
+      {/* 5섹션 카드 — 섹션별 두리 등장 */}
       {SECTION_META.map(({ key, label }) => {
         const body = sections[key];
         if (!body) return null;
+        const dooriSrc = dooriCardSrc(getResultDoori(key, slug));
         return (
           <section
             key={key}
-            className="rounded-lg border border-night-border bg-night-secondary p-6"
+            className="rounded-2xl border border-night-border bg-night-secondary p-6 md:p-7"
           >
-            <h3 className="text-xs font-mono uppercase tracking-wider text-night-fg-muted mb-3">
-              {label}
-            </h3>
+            <header className="flex items-center gap-4 mb-5">
+              {/* 두리 원형 칩 — 80px outer, 64px 두리(솔리드 PNG를 rounded-full로 원형 클립) */}
+              <div className="relative h-20 w-20 shrink-0 rounded-full bg-night-elevated ring-1 ring-starlight/20 flex items-center justify-center overflow-hidden">
+                <Image
+                  src={dooriSrc}
+                  alt="두리"
+                  width={64}
+                  height={64}
+                  className="rounded-full object-contain"
+                />
+              </div>
+              <h2 className="text-xl md:text-2xl font-semibold text-night-fg">{label}</h2>
+            </header>
             <SectionMarkdown markdown={body} />
           </section>
         );
