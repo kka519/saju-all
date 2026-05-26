@@ -6,37 +6,30 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// 한국어 마크다운 강조 정규화 — LLM이 만드는 4가지 깨짐 패턴 보정.
+// 한국어 마크다운 강조 정규화 — CJK 경계 right-flanking 보장만 처리.
 //
-// CommonMark `**` 강조의 flanking 규칙은 CJK 환경에서 자주 깨짐:
-//   - 여는 ** 직후 공백 → left-flanking 실패 (opening 인식 X)
-//   - 닫는 ** 직전 공백 → right-flanking 실패 (closing 인식 X)
-//   - 닫는 ** 뒤 문장부호+한글 조사 → right-flanking 실패
+// 배경:
+//   CommonMark `**` 강조의 flanking 규칙은 CJK 환경에서 깨짐. 특히 `**한자(漢字)**조사`
+//   패턴은 닫는 `**` 뒤가 한글 조사(non-ws/non-punct)면 right-flanking 실패 → 리터럴 별표.
+//   이를 막기 위해 닫는 ** 직후 한글 앞에 공백 1칸 자동 삽입.
 //
-// (3)/(4) 단계는 강조 content 첫 글자가 문장부호이면 매치 제외 — 두 별개 강조 사이
-// `**A**, **B**` 패턴을 `**,**` 가짜 강조로 오인해 침범하지 않도록.
+// content 첫 글자가 문장부호이면 매치 제외 — `**A**, **B**` 패턴에서 `**, **`을
+// 가짜 강조로 오인해 두 별개 강조를 침범하지 않도록.
 //
-// 적용 순서: 가장 구체적 → 일반.
 // 적용 범위: 모든 LLM 출력 화면 (preview, SajuResult, 향후 결과지 등).
+//
+// NOTE (이전 시도 회고):
+//   - step 1 (`** X **` 양쪽 공백 trim), step 2 (`** X**` 여는 공백 trim),
+//     step 3 (`**X **` 닫는 공백 trim) 모두 cross-bold 침범 문제 발생.
+//     세 정규식 모두 두 별개 강조 사이의 한글/단어를 가짜 강조로 매치해서
+//     정상 텍스트의 단어 공백을 파괴하는 부작용 보유.
+//   - `** X **`/`** X**`/`**X **` 같은 LLM 변동성 패턴은 프롬프트 강화로 source 단에서
+//     1차 방어 + 이 정규식 단순화로 정상 텍스트 보호.
+//   - LLM이 그 패턴을 계속 만들면 옵션 C (marked 라이브러리) 또는 D (HTML strong + rehype-raw) 검토.
 function preprocessKoreanBold(text: string): string {
-  return (
-    text
-      // (1) 양쪽 공백 trim: `** X **` → `**X**`
-      .replace(/\*\* +([^*\n]+?) +\*\*/g, "**$1**")
-      // (2) 여는 ** 직후 공백만 trim: `** X**` → `**X**`
-      .replace(/\*\* +([^*\s][^*\n]*?)\*\*/g, "**$1**")
-      // (3) 닫는 ** 직전 공백만 trim: `**X **` → `**X**`
-      //     content 첫 글자가 문장부호인 경우(예: `**, **`)는 가짜 매치라 제외.
-      .replace(
-        /\*\*([^*\s,.()!?:;'"][^*\n]*?[^*\s]|[^*\s,.()!?:;'"]) +\*\*/g,
-        "**$1**",
-      )
-      // (4) 닫는 ** 직후 한글 앞에 공백 1칸 (CJK 경계 right-flanking 보장)
-      //     content 첫 글자가 문장부호인 경우(예: `**,**의`)는 가짜 매치라 제외.
-      .replace(
-        /(\*\*[^*\s,.()!?:;'"][^*\n]*?\*\*)(?=[가-힣])/g,
-        "$1 ",
-      )
+  return text.replace(
+    /(\*\*[^*\s,.()!?:;'"][^*\n]*?\*\*)(?=[가-힣])/g,
+    "$1 ",
   );
 }
 
