@@ -6,12 +6,38 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-// CommonMark right-flanking 규칙: `**한자(漢字)**조사` 패턴에서 닫는 ** 직전이
-// 문장부호(`)` 등)이고 직후가 한글 조사이면 닫는 강조로 인식 안 됨 → 리터럴 별표.
-// 닫는 ** 직후 한글 앞에 공백 한 칸 삽입해 strong 렌더 보장.
-// 적용 대상: 모든 LLM 출력 화면 (preview, SajuResult, 향후 결과지 등).
+// 한국어 마크다운 강조 정규화 — LLM이 만드는 4가지 깨짐 패턴 보정.
+//
+// CommonMark `**` 강조의 flanking 규칙은 CJK 환경에서 자주 깨짐:
+//   - 여는 ** 직후 공백 → left-flanking 실패 (opening 인식 X)
+//   - 닫는 ** 직전 공백 → right-flanking 실패 (closing 인식 X)
+//   - 닫는 ** 뒤 문장부호+한글 조사 → right-flanking 실패
+//
+// (3)/(4) 단계는 강조 content 첫 글자가 문장부호이면 매치 제외 — 두 별개 강조 사이
+// `**A**, **B**` 패턴을 `**,**` 가짜 강조로 오인해 침범하지 않도록.
+//
+// 적용 순서: 가장 구체적 → 일반.
+// 적용 범위: 모든 LLM 출력 화면 (preview, SajuResult, 향후 결과지 등).
 function preprocessKoreanBold(text: string): string {
-  return text.replace(/(\*\*[^*\n]+?\*\*)(?=[가-힣])/g, "$1 ");
+  return (
+    text
+      // (1) 양쪽 공백 trim: `** X **` → `**X**`
+      .replace(/\*\* +([^*\n]+?) +\*\*/g, "**$1**")
+      // (2) 여는 ** 직후 공백만 trim: `** X**` → `**X**`
+      .replace(/\*\* +([^*\s][^*\n]*?)\*\*/g, "**$1**")
+      // (3) 닫는 ** 직전 공백만 trim: `**X **` → `**X**`
+      //     content 첫 글자가 문장부호인 경우(예: `**, **`)는 가짜 매치라 제외.
+      .replace(
+        /\*\*([^*\s,.()!?:;'"][^*\n]*?[^*\s]|[^*\s,.()!?:;'"]) +\*\*/g,
+        "**$1**",
+      )
+      // (4) 닫는 ** 직후 한글 앞에 공백 1칸 (CJK 경계 right-flanking 보장)
+      //     content 첫 글자가 문장부호인 경우(예: `**,**의`)는 가짜 매치라 제외.
+      .replace(
+        /(\*\*[^*\s,.()!?:;'"][^*\n]*?\*\*)(?=[가-힣])/g,
+        "$1 ",
+      )
+  );
 }
 
 export function SectionMarkdown({ markdown }: { markdown: string }) {

@@ -104,21 +104,19 @@ export function SajuResult({
 
   if (state === "loading") {
     return (
-      <div className="mt-10 rounded-lg border border-night-border bg-night-secondary p-10 text-center">
-        <div className="inline-block">
-          <Image
-            src="/characters/doori/doori-magic-solid.png"
-            alt="두리"
-            width={96}
-            height={96}
-            className="rounded-full ring-2 ring-starlight/40"
-            priority
-          />
-        </div>
-        <div className="mt-6 inline-flex items-center gap-2">
-          <span className="inline-block h-2 w-2 rounded-full bg-starlight animate-pulse" />
-          <span className="inline-block h-2 w-2 rounded-full bg-starlight animate-pulse [animation-delay:200ms]" />
-          <span className="inline-block h-2 w-2 rounded-full bg-starlight animate-pulse [animation-delay:400ms]" />
+      <div className="mt-10 rounded-lg border border-night-border bg-night-secondary p-10 flex flex-col items-center text-center">
+        <Image
+          src="/characters/doori/doori-magic-solid.png"
+          alt="두리"
+          width={96}
+          height={96}
+          className="rounded-full ring-2 ring-starlight/40"
+          priority
+        />
+        <div className="mt-6 flex items-center justify-center gap-2">
+          <span className="h-2 w-2 rounded-full bg-starlight animate-pulse" />
+          <span className="h-2 w-2 rounded-full bg-starlight animate-pulse [animation-delay:200ms]" />
+          <span className="h-2 w-2 rounded-full bg-starlight animate-pulse [animation-delay:400ms]" />
         </div>
         <p
           key={msgIndex}
