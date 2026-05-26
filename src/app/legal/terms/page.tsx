@@ -4,7 +4,7 @@ export const metadata = { title: "이용약관" };
 
 export default function TermsPage() {
   return (
-    <div className="container py-12 max-w-3xl prose-saju">
+    <div className="container py-12 max-w-3xl prose-saju text-night-fg">
       <h1 className="text-2xl font-bold mb-6">이용약관</h1>
 
       <h2>제1조 (목적)</h2>

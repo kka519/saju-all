@@ -4,7 +4,7 @@ export const metadata = { title: "개인정보처리방침" };
 
 export default function PrivacyPage() {
   return (
-    <div className="container py-12 max-w-3xl prose-saju">
+    <div className="container py-12 max-w-3xl prose-saju text-night-fg">
       <h1 className="text-2xl font-bold mb-6">개인정보처리방침</h1>
       <p>
         {businessInfo.companyName}(이하 &quot;회사&quot;라 함)은 {siteConfig.name}{" "}

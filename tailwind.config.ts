@@ -50,6 +50,17 @@ const config: Config = {
         mute: "#a3a3a3",
         hairline: "#e5e5e5",
         "hairline-strong": "#d4d4d4",
+
+        // 팔팔사주 별빛 밤 팔레트 (PRD §8.1 — 다크 + 별빛 포인트)
+        "night-primary":   "rgb(var(--color-bg-primary) / <alpha-value>)",
+        "night-secondary": "rgb(var(--color-bg-secondary) / <alpha-value>)",
+        "night-elevated":  "rgb(var(--color-bg-elevated) / <alpha-value>)",
+        "night-fg":        "rgb(var(--color-text-primary) / <alpha-value>)",
+        "night-fg-soft":   "rgb(var(--color-text-secondary) / <alpha-value>)",
+        "night-fg-muted":  "rgb(var(--color-text-muted) / <alpha-value>)",
+        "night-border":    "rgb(var(--color-border-night) / <alpha-value>)",
+        starlight:         "rgb(var(--color-accent) / <alpha-value>)",
+        "starlight-soft":  "rgb(var(--color-accent-soft) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",

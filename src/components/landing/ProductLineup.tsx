@@ -25,16 +25,16 @@ export async function ProductLineup() {
   if (!products || products.length === 0) {
     return (
       <section className="container py-12 text-center">
-        <p className="text-sm text-body">
-          상품이 아직 없어요. <code className="font-mono text-ink">pnpm seed:products</code> 를 실행해 주세요.
+        <p className="text-sm text-night-fg-soft">
+          상품이 아직 없어요. <code className="font-mono text-night-fg">pnpm seed:products</code> 를 실행해 주세요.
         </p>
       </section>
     );
   }
 
   return (
-    <section className="container py-16 border-t border-hairline">
-      <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-center mb-10">
+    <section className="container py-16 border-t border-night-border">
+      <h2 className="text-2xl md:text-3xl font-semibold tracking-tight text-center mb-10 text-night-fg">
         상품 라인업
       </h2>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -42,13 +42,13 @@ export async function ProductLineup() {
           <Link
             key={p.slug}
             href={`/products/${p.slug}`}
-            className="group block rounded-lg border border-hairline bg-canvas p-6 transition-colors hover:border-ink"
+            className="group block rounded-lg border border-night-border bg-night-secondary p-6 transition-colors hover:border-starlight hover:bg-night-elevated"
           >
-            <p className="text-base font-semibold text-ink">{p.name}</p>
-            <p className="mt-1.5 text-sm text-body leading-relaxed line-clamp-2">
+            <p className="text-base font-semibold text-night-fg">{p.name}</p>
+            <p className="mt-1.5 text-sm text-night-fg-soft leading-relaxed line-clamp-2">
               {p.description}
             </p>
-            <p className="mt-5 text-lg font-mono font-medium text-ink">
+            <p className="mt-5 text-lg font-mono font-medium text-starlight">
               {formatKRW(p.price)}
             </p>
           </Link>

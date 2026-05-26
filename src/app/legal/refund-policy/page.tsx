@@ -4,7 +4,7 @@ export const metadata = { title: "환불정책" };
 
 export default function RefundPolicyPage() {
   return (
-    <div className="container py-12 max-w-3xl prose-saju">
+    <div className="container py-12 max-w-3xl prose-saju text-night-fg">
       <h1 className="text-2xl font-bold mb-6">환불정책</h1>
       <p>
         본 환불정책은 「전자상거래 등에서의 소비자보호에 관한 법률」 및 회사의 이용약관 제17조·제18조에

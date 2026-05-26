@@ -84,7 +84,7 @@ export function SajuForm({ productId, productSlug, isLoggedIn }: Props) {
             onChange={(e) => setBirthTime(e.target.value)}
             disabled={timeUnknown}
           />
-          <label className="flex items-center gap-2 text-sm text-muted-foreground">
+          <label className="flex items-center gap-2 text-sm text-night-fg-soft">
             <input type="checkbox" checked={timeUnknown} onChange={(e) => setTimeUnknown(e.target.checked)} />
             시 모름
           </label>
@@ -100,7 +100,7 @@ export function SajuForm({ productId, productSlug, isLoggedIn }: Props) {
                 type="button"
                 key={g}
                 onClick={() => setGender(g)}
-                className={`flex-1 h-10 rounded-full border text-sm transition-colors ${gender === g ? "border-ink bg-ink text-canvas" : "border-hairline text-ink hover:border-ink"}`}
+                className={`flex-1 h-10 rounded-full border text-sm transition-colors ${gender === g ? "border-starlight bg-starlight text-night-primary" : "border-night-border text-night-fg hover:border-starlight"}`}
               >
                 {g === "male" ? "남성" : "여성"}
               </button>
@@ -115,7 +115,7 @@ export function SajuForm({ productId, productSlug, isLoggedIn }: Props) {
                 type="button"
                 key={c}
                 onClick={() => setCalendar(c)}
-                className={`flex-1 h-10 rounded-full border text-sm transition-colors ${calendar === c ? "border-ink bg-ink text-canvas" : "border-hairline text-ink hover:border-ink"}`}
+                className={`flex-1 h-10 rounded-full border text-sm transition-colors ${calendar === c ? "border-starlight bg-starlight text-night-primary" : "border-night-border text-night-fg hover:border-starlight"}`}
               >
                 {c === "solar" ? "양력" : "음력"}
               </button>
@@ -132,7 +132,7 @@ export function SajuForm({ productId, productSlug, isLoggedIn }: Props) {
               type="button"
               key={c}
               onClick={() => toggleConcern(c)}
-              className={`px-4 h-8 rounded-full border text-sm transition-colors ${concerns.includes(c) ? "border-ink bg-ink text-canvas" : "border-hairline text-ink hover:border-ink"}`}
+              className={`px-4 h-8 rounded-full border text-sm transition-colors ${concerns.includes(c) ? "border-starlight bg-starlight text-night-primary" : "border-night-border text-night-fg hover:border-starlight"}`}
             >
               {c}
             </button>
@@ -141,19 +141,27 @@ export function SajuForm({ productId, productSlug, isLoggedIn }: Props) {
       </div>
 
       {isLoggedIn ? (
-        <Button type="submit" size="lg" className="w-full" disabled={submitting}>
+        <Button
+          type="submit"
+          size="lg"
+          className="w-full bg-starlight text-night-primary hover:bg-starlight-soft"
+          disabled={submitting}
+        >
           {submitting ? "주문 생성 중..." : "결제하러 가기"}
         </Button>
       ) : (
         <div className="space-y-2">
           <Link
             href={`/login?redirect=${encodeURIComponent(`/products/${productSlug}`)}`}
-            className={cn(buttonVariants({ size: "lg" }), "w-full")}
+            className={cn(
+              buttonVariants({ size: "lg" }),
+              "w-full bg-starlight text-night-primary hover:bg-starlight-soft",
+            )}
           >
             로그인하고 결제하기
           </Link>
-          <p className="text-xs text-body text-center">
-            결과는 로그인 후 <span className="text-ink">마이페이지</span> 에서 확인할 수 있어요.
+          <p className="text-xs text-night-fg-soft text-center">
+            결과는 로그인 후 <span className="text-starlight">마이페이지</span> 에서 확인할 수 있어요.
           </p>
         </div>
       )}

@@ -97,7 +97,7 @@ export default async function DemoPage({ searchParams }: { searchParams: SearchP
   }
 
   return (
-    <div className="container py-12 max-w-3xl">
+    <div className="container py-12 max-w-3xl text-night-fg">
       <header className="mb-8">
         <p className="text-xs font-mono text-mute mb-2">DEMO</p>
         <h1 className="text-3xl font-semibold tracking-tight">명식 → 결과지 흐름 데모</h1>

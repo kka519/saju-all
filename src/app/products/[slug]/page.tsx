@@ -49,34 +49,34 @@ export default async function ProductDetailPage({
   if (!product) notFound();
 
   return (
-    <div className="container py-12 max-w-2xl">
+    <div className="container py-12 max-w-2xl text-night-fg">
       <header className="mb-10">
-        <p className="text-xs font-mono text-mute mb-2">PRODUCT / {product.slug}</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">PRODUCT / {product.slug}</p>
         <h1 className="text-3xl font-semibold tracking-tight">{product.name}</h1>
-        <p className="mt-2 text-sm text-body">{product.description}</p>
-        <p className="mt-5 text-2xl font-mono font-medium text-ink">{formatKRW(product.price)}</p>
+        <p className="mt-2 text-sm text-night-fg-soft">{product.description}</p>
+        <p className="mt-5 text-2xl font-mono font-medium text-starlight">{formatKRW(product.price)}</p>
       </header>
 
       <section>
-        <h2 className="text-sm font-semibold mb-4 text-ink">사주 정보 입력</h2>
-        <p className="text-xs text-body mb-4">정확할수록 더 정밀한 결과가 나옵니다.</p>
+        <h2 className="text-sm font-semibold mb-4 text-night-fg">사주 정보 입력</h2>
+        <p className="text-xs text-night-fg-soft mb-4">정확할수록 더 정밀한 결과가 나옵니다.</p>
         <SajuForm productId={product.id} productSlug={product.slug} isLoggedIn={!!user} />
       </section>
 
       {reviews && reviews.length > 0 && (
-        <section className="mt-16 pt-10 border-t border-hairline">
-          <h2 className="text-sm font-semibold mb-5 text-ink">최근 후기</h2>
-          <ul className="divide-y divide-hairline border-y border-hairline">
+        <section className="mt-16 pt-10 border-t border-night-border">
+          <h2 className="text-sm font-semibold mb-5 text-night-fg">최근 후기</h2>
+          <ul className="divide-y divide-night-border border-y border-night-border">
             {reviews.map((r) => (
               <li key={r.id} className="py-5">
                 <div className="flex items-center justify-between text-sm">
                   <span aria-label={`${r.rating}점`}>
-                    <span className="text-ink">{"★".repeat(r.rating)}</span>
-                    <span className="text-hairline-strong">{"★".repeat(5 - r.rating)}</span>
+                    <span className="text-starlight">{"★".repeat(r.rating)}</span>
+                    <span className="text-night-fg-muted">{"★".repeat(5 - r.rating)}</span>
                   </span>
-                  <span className="text-xs text-mute font-mono">{formatDate(r.created_at)}</span>
+                  <span className="text-xs text-night-fg-muted font-mono">{formatDate(r.created_at)}</span>
                 </div>
-                <p className="mt-2 text-sm text-charcoal leading-relaxed">{r.content}</p>
+                <p className="mt-2 text-sm text-night-fg-soft leading-relaxed">{r.content}</p>
               </li>
             ))}
           </ul>
