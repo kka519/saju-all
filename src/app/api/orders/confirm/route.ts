@@ -12,11 +12,11 @@ import {
   ganjiToMyeongsik,
   type BirthInfo,
 } from "@/lib/saju/saju-api";
+import { computeZiweiForSlug, type ZiweiSummary } from "@/lib/saju/ziwei";
 import {
-  computeZiweiForSlug,
-  type ZiweiInput,
-  type ZiweiSummary,
-} from "@/lib/saju/ziwei";
+  sajuInputToZiweiInput,
+  type SajuInputRow,
+} from "@/lib/saju/route-adapters";
 
 const bodySchema = z.object({
   paymentKey: z.string().min(1),
@@ -24,15 +24,8 @@ const bodySchema = z.object({
   amount: z.number().int().nonnegative(),
 });
 
-// saju_inputs row → BirthInfo (luckyloveme 입력 형식)
-export type SajuInputRow = {
-  birth_date: string;            // "YYYY-MM-DD"
-  birth_time: string | null;     // "HH:mm"
-  time_unknown: boolean;
-  calendar: "solar" | "lunar";
-  gender: "male" | "female";
-  concerns: string[];
-};
+// SajuInputRow 타입은 src/lib/saju/route-adapters.ts 에서 import.
+// (자미두수 외 toBirthInfo / toComputeInput 어댑터는 본 route 전용이라 여기 유지.)
 
 function toBirthInfo(input: SajuInputRow): BirthInfo {
   const [y, m, d] = input.birth_date.split("-");
@@ -58,25 +51,7 @@ function toComputeInput(input: SajuInputRow) {
   };
 }
 
-// SajuInputRow → ZiweiInput 어댑터 (자미두수 계산용).
-// 시 미상(time_unknown=true 또는 birth_time=null) 시 null 반환 → computeZiweiForSlug가 흡수.
-// isLeapMonth는 SajuInputRow에 필드 없어 false 고정 (윤달 UI는 별도 작업).
-// 테스트(scripts/test-confirm-ziwei.ts)에서 import 가능하도록 export.
-export function sajuInputToZiweiInput(input: SajuInputRow): ZiweiInput | null {
-  if (input.time_unknown || !input.birth_time) return null;
-  const [y, m, d] = input.birth_date.split("-");
-  const [hh, mm] = input.birth_time.split(":");
-  return {
-    calendar: input.calendar, // 이미 'solar' | 'lunar' — getZiwei와 동일 포맷
-    year: Number(y),
-    month: Number(m),
-    day: Number(d),
-    hour: Number(hh),
-    minute: Number(mm),
-    gender: input.gender === "male" ? "남" : "여",
-    isLeapMonth: false,
-  };
-}
+// sajuInputToZiweiInput 어댑터는 src/lib/saju/route-adapters.ts 로 이동.
 
 export async function POST(request: NextRequest) {
   const parsed = bodySchema.safeParse(await request.json());

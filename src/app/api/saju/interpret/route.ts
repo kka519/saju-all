@@ -26,13 +26,10 @@ import {
 } from "@/lib/saju/saju-api";
 import { buildSajuPrompt } from "@/lib/saju/prompt";
 import { generateInterpretation } from "@/lib/saju/llm";
-import {
-  computeZiweiForSlug,
-  type ZiweiInput,
-  type ZiweiSummary,
-} from "@/lib/saju/ziwei";
-// ZIWEI_SLUGS / isZiweiSlug / ZiweiSlug 는 ziwei.ts 로 이동 (interpret + confirm 공유).
-// 테스트(scripts/test-ziwei-interpret.ts) 는 ziwei.ts 에서 직접 import.
+import { computeZiweiForSlug, type ZiweiSummary } from "@/lib/saju/ziwei";
+import { birthInfoToZiweiInput } from "@/lib/saju/route-adapters";
+// ZIWEI_SLUGS / isZiweiSlug 는 ziwei.ts, 어댑터/타입은 route-adapters.ts 로 분리됨.
+// Next.js 15 route handler 는 표준 export 외 추가 export 를 금지(.next/types 검증) → 별도 모듈로.
 
 const birthInfoSchema = z.object({
   birthYear: z.string().regex(/^\d{4}$/, "birthYear 는 YYYY 형식"),
@@ -53,24 +50,8 @@ const bodySchema = z.object({
   concerns: z.array(z.string()).optional().default([]),
 });
 
-export type BirthInfo = z.infer<typeof birthInfoSchema>;
-
-// birthInfo(zod 검증된 입력) → getZiwei input 어댑터.
-// 시 미상(birthHour 없음) 또는 매핑 불가 시 null 반환 → 호출처에서 자미두수 미적용.
-// 어댑터를 route.ts에 둔 이유: birthInfo 타입이 route 스키마 종속이고 한 곳에서만 사용.
-export function birthInfoToZiweiInput(bi: BirthInfo): ZiweiInput | null {
-  if (!bi.birthHour) return null; // 시 미상 → 자미두수 계산 불가
-  return {
-    calendar: bi.calendarType === "양력" ? "solar" : "lunar",
-    year: Number(bi.birthYear),
-    month: Number(bi.birthMonth),
-    day: Number(bi.birthDay),
-    hour: Number(bi.birthHour),
-    minute: Number(bi.birthMinute ?? "0"),
-    gender: bi.gender === "male" ? "남" : "여",
-    isLeapMonth: bi.isLeapMonth ?? false,
-  };
-}
+// BirthInfo 타입 + birthInfoToZiweiInput 어댑터는 src/lib/saju/route-adapters.ts 로 이동.
+// route handler 추가 export 가 Next.js .next/types 검증을 깨므로 별도 모듈로 분리.
 
 const SCHEMA_INSTRUCTION = `
 
