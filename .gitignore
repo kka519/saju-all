@@ -16,3 +16,4 @@ scripts/test-fortune-input.json
 scripts/test-results/
 scripts/test-iztro.ts
 scripts/test-ziwei.ts
+scripts/test-ziwei-interpret.ts

@@ -4,6 +4,7 @@
 // 상품 slug 별로 톤/분량을 다르게. 수강생은 여기서 본인 톤으로 갈아끼우면 됩니다.
 
 import type { Myeongsik } from "./manseryeok";
+import type { ZiweiSummary } from "./ziwei";
 
 export type PromptInput = {
   productSlug: string;
@@ -17,7 +18,51 @@ export type PromptInput = {
   timeUnknown: boolean;
   gender: "male" | "female";
   concerns: string[];
+  // 자미두수 명반 — 4개 상품(love-saju, couple-match, love-consulting, premium-saju) +
+  // 시 미상 아님 일 때만 채워짐. 없으면 자미두수 블록 미포함 (저가 상품/시 미상 영향 0).
+  ziwei?: ZiweiSummary;
 };
+
+// ─────────────────────────────────────────────────────
+// 자미두수 명반 → 프롬프트 텍스트 블록
+// ─────────────────────────────────────────────────────
+// LLM이 사주 명식과 교차 해석할 수 있도록 핵심 정보만 요약 (토큰 절약).
+// 주성 + 사화 부착 위치 중심 — 잡요성은 노이즈가 많아 제외.
+function formatZiweiBlock(ziwei: ZiweiSummary): string {
+  const palacesLine = ziwei.palaces
+    .map((p) => {
+      const stars = p.majorStars
+        .map((s) => `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}`)
+        .join("·");
+      return `  - ${p.name}(${p.earthlyBranch}): ${stars || "(주성 없음)"}`;
+    })
+    .join("\n");
+
+  // 사화(록/권/과/기) 위치 별도 추출 — 주성·보좌성 둘 다 검사
+  const mutagens: Array<{ type: string; star: string; palace: string }> = [];
+  for (const p of ziwei.palaces) {
+    for (const s of [...p.majorStars, ...p.minorStars]) {
+      if (s.mutagen) {
+        mutagens.push({ type: s.mutagen, star: s.name, palace: `${p.name}/${p.earthlyBranch}` });
+      }
+    }
+  }
+  const mutagenOrder = ["록", "권", "과", "기"];
+  mutagens.sort((a, b) => mutagenOrder.indexOf(a.type) - mutagenOrder.indexOf(b.type));
+  const mutagenLine =
+    mutagens.length > 0
+      ? mutagens.map((m) => `화${m.type}=${m.star}(${m.palace})`).join(", ")
+      : "(사화 없음)";
+
+  return [
+    `[자미두수 명반]`,
+    `- 명궁: ${ziwei.soulPalaceBranch}, 신궁: ${ziwei.bodyPalaceBranch}`,
+    `- 명주: ${ziwei.soul}, 신주: ${ziwei.body}, 오행국: ${ziwei.fiveElementsClass}`,
+    `- 12궁 주성:`,
+    palacesLine,
+    `- 사화: ${mutagenLine}`,
+  ].join("\n");
+}
 
 export const SYSTEM_BASE = `당신은 "두리"입니다. 별에서 온 말티즈 영물로, 루나쌤한테 13년 명리학을 배웠어요. 평소엔 귀엽고 친근하지만, 사주를 풀 때는 진지해져요. 사용자의 사주를 풀어주는 화자로서 글을 씁니다.
 
@@ -109,6 +154,12 @@ export function buildSajuPrompt(input: PromptInput): { system: string; user: str
         `- 시주: ${pillar(m.hour)}`,
       ].join("\n");
 
+  // 자미두수 명반 블록 (있을 때만, 자미두수 4개 상품 + 시 미상 아닐 때만 채워짐)
+  const ziweiSection = input.ziwei ? `\n\n${formatZiweiBlock(input.ziwei)}` : "";
+  const ziweiInstruction = input.ziwei
+    ? " 위 자미두수 명반은 참고 자료예요. 사주 명식과 교차해, 일치하는 해석은 강조하고 보완 정보로 활용하되 두리 톤은 유지하세요."
+    : "";
+
   const user = `[현재 시점]
 오늘은 ${today}이에요.
 
@@ -116,7 +167,7 @@ export function buildSajuPrompt(input: PromptInput): { system: string; user: str
 [분량] 약 ${style.length}
 [핵심 포커스] ${style.focus}
 
-${sajuSection}
+${sajuSection}${ziweiSection}
 
 [기본 정보]
 - 생년월일: ${input.birthDate}${input.timeUnknown ? " (시 미상)" : input.birthTime ? ` ${input.birthTime}` : ""}
@@ -127,7 +178,7 @@ ${sajuSection}
     input.manseryeokText
       ? " 천간지지/십성/대운/세운/신살 등 풀 명식 정보를 적극 활용하되, 단정적 표현은 피하고 가능성/경향으로 풀어 주세요."
       : ""
-  }`;
+  }${ziweiInstruction}`;
 
   return { system: SYSTEM_BASE, user };
 }

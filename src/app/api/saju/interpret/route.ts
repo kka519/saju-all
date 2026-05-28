@@ -1,6 +1,10 @@
 // =====================================================
 // POST /api/saju/interpret
 // =====================================================
+// FIXME: 베타 배포 전 인증/rate limit 추가 필수 (현재 익명 호출 가능, abuse 위험).
+//   - 옵션: Supabase auth 체크 / IP+sessionId rate limit / 결제 완료 order_id 검증.
+//   - 현재 흐름은 /demo + scripts/test-all-products.ts 등 결제 우회 테스트용으로만 안전.
+//
 // /demo (그리고 후속 결과 페이지)가 CSR에서 호출하는 결과지 엔드포인트.
 // 내부: fetchSajuAnalysis → ganjiToMyeongsik + formatSajuToManseryeok
 //       → buildSajuPrompt + JSON schema instruction append
@@ -22,6 +26,27 @@ import {
 } from "@/lib/saju/saju-api";
 import { buildSajuPrompt } from "@/lib/saju/prompt";
 import { generateInterpretation } from "@/lib/saju/llm";
+import {
+  getZiwei,
+  extractZiweiSummary,
+  type ZiweiInput,
+  type ZiweiSummary,
+} from "@/lib/saju/ziwei";
+
+// 자미두수 적용 상품 (PRD §5.1 — 9개 중 4개).
+// 테스트(scripts/test-ziwei-interpret.ts)에서 import 가능하도록 export.
+// Next.js route handler는 GET/POST 외 추가 export를 무시 → 라우트 동작 영향 없음.
+export const ZIWEI_SLUGS = [
+  "love-saju",
+  "couple-match",
+  "love-consulting",
+  "premium-saju",
+] as const;
+export type ZiweiSlug = (typeof ZIWEI_SLUGS)[number];
+
+export function isZiweiSlug(slug: string): slug is ZiweiSlug {
+  return (ZIWEI_SLUGS as readonly string[]).includes(slug);
+}
 
 const birthInfoSchema = z.object({
   birthYear: z.string().regex(/^\d{4}$/, "birthYear 는 YYYY 형식"),
@@ -41,6 +66,25 @@ const bodySchema = z.object({
   productName: z.string().min(1).optional().default("기본 사주"),
   concerns: z.array(z.string()).optional().default([]),
 });
+
+export type BirthInfo = z.infer<typeof birthInfoSchema>;
+
+// birthInfo(zod 검증된 입력) → getZiwei input 어댑터.
+// 시 미상(birthHour 없음) 또는 매핑 불가 시 null 반환 → 호출처에서 자미두수 미적용.
+// 어댑터를 route.ts에 둔 이유: birthInfo 타입이 route 스키마 종속이고 한 곳에서만 사용.
+export function birthInfoToZiweiInput(bi: BirthInfo): ZiweiInput | null {
+  if (!bi.birthHour) return null; // 시 미상 → 자미두수 계산 불가
+  return {
+    calendar: bi.calendarType === "양력" ? "solar" : "lunar",
+    year: Number(bi.birthYear),
+    month: Number(bi.birthMonth),
+    day: Number(bi.birthDay),
+    hour: Number(bi.birthHour),
+    minute: Number(bi.birthMinute ?? "0"),
+    gender: bi.gender === "male" ? "남" : "여",
+    isLeapMonth: bi.isLeapMonth ?? false,
+  };
+}
 
 const SCHEMA_INSTRUCTION = `
 
@@ -180,6 +224,22 @@ export async function POST(req: NextRequest) {
   }
   const elapsedApi = Date.now() - t0;
 
+  // 1.5) 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.
+  // 계산 실패해도 전체 흐름 죽으면 안 됨 → ziwei = undefined 두고 사주만으로 진행.
+  let ziwei: ZiweiSummary | undefined;
+  if (isZiweiSlug(slug)) {
+    const ziweiInput = birthInfoToZiweiInput(birthInfo);
+    if (ziweiInput) {
+      try {
+        const astrolabe = getZiwei(ziweiInput);
+        ziwei = extractZiweiSummary(astrolabe);
+      } catch (err) {
+        console.error("[interpret] 자미두수 계산 실패 — 사주만으로 진행:", err);
+        // ziwei는 undefined로 둠
+      }
+    }
+  }
+
   // 2) LLM
   const { system, user } = buildSajuPrompt({
     productSlug: slug,
@@ -193,6 +253,7 @@ export async function POST(req: NextRequest) {
     timeUnknown: !birthInfo.birthHour,
     gender: birthInfo.gender,
     concerns,
+    ziwei,
   });
   const userWithSchema = user + SCHEMA_INSTRUCTION;
 
@@ -220,6 +281,8 @@ export async function POST(req: NextRequest) {
       ok: true as const,
       sections,
       myeongsik,
+      // ziwei 있을 때만 astrolabe 키 포함 (자미두수 미적용 5개 상품 + 시 미상 응답엔 미노출)
+      ...(ziwei ? { astrolabe: ziwei } : {}),
       meta: {
         provider: llm.provider,
         model: llm.model,
@@ -230,6 +293,7 @@ export async function POST(req: NextRequest) {
   }
 
   // 폴백 — JSON 깨졌어도 사용자에겐 raw text를 coreReading에라도 노출
+  // (폴백 응답에는 astrolabe 미포함 — 정상 응답만 자미두수 데이터 노출)
   return NextResponse.json({
     ok: true as const,
     sections: {
