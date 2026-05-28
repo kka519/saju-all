@@ -17,3 +17,4 @@ scripts/test-results/
 scripts/test-iztro.ts
 scripts/test-ziwei.ts
 scripts/test-ziwei-interpret.ts
+scripts/test-confirm-ziwei.ts

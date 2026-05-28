@@ -27,26 +27,12 @@ import {
 import { buildSajuPrompt } from "@/lib/saju/prompt";
 import { generateInterpretation } from "@/lib/saju/llm";
 import {
-  getZiwei,
-  extractZiweiSummary,
+  computeZiweiForSlug,
   type ZiweiInput,
   type ZiweiSummary,
 } from "@/lib/saju/ziwei";
-
-// 자미두수 적용 상품 (PRD §5.1 — 9개 중 4개).
-// 테스트(scripts/test-ziwei-interpret.ts)에서 import 가능하도록 export.
-// Next.js route handler는 GET/POST 외 추가 export를 무시 → 라우트 동작 영향 없음.
-export const ZIWEI_SLUGS = [
-  "love-saju",
-  "couple-match",
-  "love-consulting",
-  "premium-saju",
-] as const;
-export type ZiweiSlug = (typeof ZIWEI_SLUGS)[number];
-
-export function isZiweiSlug(slug: string): slug is ZiweiSlug {
-  return (ZIWEI_SLUGS as readonly string[]).includes(slug);
-}
+// ZIWEI_SLUGS / isZiweiSlug / ZiweiSlug 는 ziwei.ts 로 이동 (interpret + confirm 공유).
+// 테스트(scripts/test-ziwei-interpret.ts) 는 ziwei.ts 에서 직접 import.
 
 const birthInfoSchema = z.object({
   birthYear: z.string().regex(/^\d{4}$/, "birthYear 는 YYYY 형식"),
@@ -225,20 +211,11 @@ export async function POST(req: NextRequest) {
   const elapsedApi = Date.now() - t0;
 
   // 1.5) 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.
-  // 계산 실패해도 전체 흐름 죽으면 안 됨 → ziwei = undefined 두고 사주만으로 진행.
-  let ziwei: ZiweiSummary | undefined;
-  if (isZiweiSlug(slug)) {
-    const ziweiInput = birthInfoToZiweiInput(birthInfo);
-    if (ziweiInput) {
-      try {
-        const astrolabe = getZiwei(ziweiInput);
-        ziwei = extractZiweiSummary(astrolabe);
-      } catch (err) {
-        console.error("[interpret] 자미두수 계산 실패 — 사주만으로 진행:", err);
-        // ziwei는 undefined로 둠
-      }
-    }
-  }
+  // computeZiweiForSlug 가 slug 체크 + 시 미상(null) 흡수 + 에러 catch까지 일괄 처리.
+  const ziwei: ZiweiSummary | undefined = computeZiweiForSlug(
+    slug,
+    birthInfoToZiweiInput(birthInfo),
+  );
 
   // 2) LLM
   const { system, user } = buildSajuPrompt({

@@ -12,6 +12,11 @@ import {
   ganjiToMyeongsik,
   type BirthInfo,
 } from "@/lib/saju/saju-api";
+import {
+  computeZiweiForSlug,
+  type ZiweiInput,
+  type ZiweiSummary,
+} from "@/lib/saju/ziwei";
 
 const bodySchema = z.object({
   paymentKey: z.string().min(1),
@@ -20,7 +25,7 @@ const bodySchema = z.object({
 });
 
 // saju_inputs row → BirthInfo (luckyloveme 입력 형식)
-type SajuInputRow = {
+export type SajuInputRow = {
   birth_date: string;            // "YYYY-MM-DD"
   birth_time: string | null;     // "HH:mm"
   time_unknown: boolean;
@@ -50,6 +55,26 @@ function toComputeInput(input: SajuInputRow) {
     timeUnknown: input.time_unknown,
     calendar: input.calendar,
     gender: input.gender,
+  };
+}
+
+// SajuInputRow → ZiweiInput 어댑터 (자미두수 계산용).
+// 시 미상(time_unknown=true 또는 birth_time=null) 시 null 반환 → computeZiweiForSlug가 흡수.
+// isLeapMonth는 SajuInputRow에 필드 없어 false 고정 (윤달 UI는 별도 작업).
+// 테스트(scripts/test-confirm-ziwei.ts)에서 import 가능하도록 export.
+export function sajuInputToZiweiInput(input: SajuInputRow): ZiweiInput | null {
+  if (input.time_unknown || !input.birth_time) return null;
+  const [y, m, d] = input.birth_date.split("-");
+  const [hh, mm] = input.birth_time.split(":");
+  return {
+    calendar: input.calendar, // 이미 'solar' | 'lunar' — getZiwei와 동일 포맷
+    year: Number(y),
+    month: Number(m),
+    day: Number(d),
+    hour: Number(hh),
+    minute: Number(mm),
+    gender: input.gender === "male" ? "남" : "여",
+    isLeapMonth: false,
   };
 }
 
@@ -147,6 +172,14 @@ export async function POST(request: NextRequest) {
       myeongsik = await computeMyeongsik(toComputeInput(input));
     }
 
+    // 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.
+    // computeZiweiForSlug 가 slug 체크 + null(시 미상) 흡수 + 에러 catch까지 일괄 처리.
+    // STEP 3에서 buildSajuPrompt 인자 + saju_results.insert 의 astrolabe 컬럼에 사용.
+    const ziwei: ZiweiSummary | undefined = computeZiweiForSlug(
+      product.slug,
+      sajuInputToZiweiInput(input),
+    );
+
     const { system, user } = buildSajuPrompt({
       productSlug: product.slug,
       productName: product.name,
@@ -157,6 +190,7 @@ export async function POST(request: NextRequest) {
       timeUnknown: input.time_unknown,
       gender: input.gender,
       concerns: input.concerns,
+      ziwei,
     });
 
     const llm = await generateInterpretation({ system, user });
@@ -166,6 +200,8 @@ export async function POST(request: NextRequest) {
       .insert({
         order_id: order.id,
         myeongsik: myeongsik as never,
+        // 자미두수 4개 상품 + 시 있음일 때만 채워짐. 나머지는 null (nullable jsonb 컬럼, 0005 마이그레이션).
+        astrolabe: (ziwei ?? null) as never,
         interpretation_md: llm.text,
         llm_provider: llm.provider,
         llm_model: llm.model,

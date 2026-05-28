@@ -172,6 +172,53 @@ export type ZiweiSummary = {
   palaces: ZiweiPalaceSummary[];
 };
 
+// ─────────────────────────────────────────────────────
+// 자미두수 적용 상품 상수 + 타입가드
+// ─────────────────────────────────────────────────────
+// PRD §5.1 9개 상품 중 자미두수 데이터를 LLM 프롬프트/DB에 주입하는 4개.
+// interpret(미리보기) + confirm(주문 확정) 양쪽 서버 라우트에서 공통 사용.
+export const ZIWEI_SLUGS = [
+  "love-saju",
+  "couple-match",
+  "love-consulting",
+  "premium-saju",
+] as const;
+export type ZiweiSlug = (typeof ZIWEI_SLUGS)[number];
+
+export function isZiweiSlug(slug: string): slug is ZiweiSlug {
+  return (ZIWEI_SLUGS as readonly string[]).includes(slug);
+}
+
+// ─────────────────────────────────────────────────────
+// 공용 헬퍼 — slug + ZiweiInput 받아 ZiweiSummary 반환 (조건/에러 모두 흡수)
+// ─────────────────────────────────────────────────────
+
+/**
+ * slug가 자미두수 적용 상품이고 입력이 유효할 때만 ZiweiSummary 반환.
+ * 그 외(비-자미두수 상품, 시 미상, 계산 예외) 모두 undefined 반환.
+ *
+ * - interpret route + confirm route 공통 호출지 — 분기 로직 중복 제거.
+ * - 계산 실패해도 throw 안 함 → 호출처가 사주만으로 진행 가능.
+ *
+ * @param slug 상품 슬러그
+ * @param ziweiInput 어댑터가 변환한 입력. 시 미상이면 호출처가 null 전달.
+ * @returns ZiweiSummary | undefined
+ */
+export function computeZiweiForSlug(
+  slug: string,
+  ziweiInput: ZiweiInput | null,
+): ZiweiSummary | undefined {
+  if (!isZiweiSlug(slug)) return undefined;
+  if (ziweiInput === null) return undefined; // 시 미상 등
+  try {
+    const astrolabe = getZiwei(ziweiInput);
+    return extractZiweiSummary(astrolabe);
+  } catch (err) {
+    console.error("[ziwei] computeZiweiForSlug 계산 실패 — undefined 반환:", err);
+    return undefined;
+  }
+}
+
 /**
  * iztro astrolabe 객체에서 자미두수 요약 정보를 추출 (plain JSON-safe 객체).
  *
