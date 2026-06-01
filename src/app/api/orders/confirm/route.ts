@@ -11,6 +11,7 @@ import {
   formatSajuToManseryeok,
   ganjiToMyeongsik,
   type BirthInfo,
+  type SajuAnalysisResponse,
 } from "@/lib/saju/saju-api";
 import { computeZiweiForSlug, type ZiweiSummary } from "@/lib/saju/ziwei";
 import {
@@ -125,6 +126,9 @@ export async function POST(request: NextRequest) {
     // 만세력/풀 분석: luckyloveme 키가 있으면 실제 API, 없거나 실패하면 mock 으로 fallback
     let myeongsik: Myeongsik;
     let manseryeokText: string | undefined;
+    // fullAnalysis: luckyloveme 16종 raw json. saju_results.full_analysis (0006) 컬럼에 저장.
+    // mock 폴백/API 미설정/ganji 누락 케이스에서는 null 유지.
+    let fullAnalysis: SajuAnalysisResponse | null = null;
 
     if (isSajuApiConfigured()) {
       try {
@@ -134,6 +138,8 @@ export async function POST(request: NextRequest) {
         if (converted) {
           myeongsik = converted;
           manseryeokText = formatSajuToManseryeok(analysis, birthInfo);
+          // ganji 변환 성공 케이스만 fullAnalysis 보관 (mock 폴백 시 부분 데이터 저장 회피)
+          fullAnalysis = analysis;
         } else {
           // ganji 필드 누락 — mock 으로 폴백
           myeongsik = await computeMyeongsik(toComputeInput(input));
@@ -177,6 +183,8 @@ export async function POST(request: NextRequest) {
         myeongsik: myeongsik as never,
         // 자미두수 4개 상품 + 시 있음일 때만 채워짐. 나머지는 null (nullable jsonb 컬럼, 0005 마이그레이션).
         astrolabe: (ziwei ?? null) as never,
+        // luckyloveme 16종 풀 분석 raw json. ganji 변환 성공 시만 채움, mock 폴백은 null (0006 마이그레이션).
+        full_analysis: (fullAnalysis ?? null) as never,
         interpretation_md: llm.text,
         llm_provider: llm.provider,
         llm_model: llm.model,

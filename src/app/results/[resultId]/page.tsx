@@ -19,7 +19,7 @@ export default async function ResultPage({
 
   const { data: result } = await service
     .from("saju_results")
-    .select("id, myeongsik, interpretation_md, llm_provider, llm_model, created_at, order_id")
+    .select("id, myeongsik, full_analysis, interpretation_md, llm_provider, llm_model, created_at, order_id")
     .eq("id", resultId)
     .maybeSingle();
 
