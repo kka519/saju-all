@@ -27,14 +27,32 @@ export type PromptInput = {
 // 자미두수 명반 → 프롬프트 텍스트 블록
 // ─────────────────────────────────────────────────────
 // LLM이 사주 명식과 교차 해석할 수 있도록 핵심 정보만 요약 (토큰 절약).
-// 주성 + 사화 부착 위치 중심 — 잡요성은 노이즈가 많아 제외.
-function formatZiweiBlock(ziwei: ZiweiSummary): string {
+// 기본: 12궁 주성 + 사화 부착 위치.
+// 보강: 재물 4궁(재백·전택·복덕·관록)에 한해 보좌성·잡요성 추가.
+//   분류 라벨 (보)/(잡) 일괄 접미사 — 한자가 다르나 한국어 표기가 같은
+//   별(예: 天鉞 vs 天月이 둘 다 "천월")의 LLM 오독 방지.
+const WEALTH_PALACES = new Set(["재백", "전택", "복덕", "관록"]);
+
+export function formatZiweiBlock(ziwei: ZiweiSummary): string {
   const palacesLine = ziwei.palaces
     .map((p) => {
-      const stars = p.majorStars
+      const major = p.majorStars
         .map((s) => `${s.name}${s.mutagen ? `(${s.mutagen})` : ""}`)
         .join("·");
-      return `  - ${p.name}(${p.earthlyBranch}): ${stars || "(주성 없음)"}`;
+      const lines = [`  - ${p.name}(${p.earthlyBranch}): ${major || "(주성 없음)"}`];
+      if (WEALTH_PALACES.has(p.name)) {
+        if (p.minorStars.length > 0) {
+          const minor = p.minorStars
+            .map((s) => `${s.name}(보)${s.mutagen ? `(${s.mutagen})` : ""}`)
+            .join("·");
+          lines.push(`    · 보좌성: ${minor}`);
+        }
+        if (p.adjectiveStars.length > 0) {
+          const adj = p.adjectiveStars.map((s) => `${s.name}(잡)`).join("·");
+          lines.push(`    · 잡요성: ${adj}`);
+        }
+      }
+      return lines.join("\n");
     })
     .join("\n");
 

@@ -18,3 +18,5 @@ scripts/test-iztro.ts
 scripts/test-ziwei.ts
 scripts/test-ziwei-interpret.ts
 scripts/test-confirm-ziwei.ts
+scripts/test-ziwei-injection.ts
+scripts/test-wealth-prompt.ts
