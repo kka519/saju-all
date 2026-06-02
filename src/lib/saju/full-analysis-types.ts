@@ -242,10 +242,33 @@ export type SinStrength = {
 };
 
 // ─────────────────────────────────────────────────────
+// Sipseong info — 대운/세운 공통 십성 객체
+// ─────────────────────────────────────────────────────
+
+/**
+ * 대운·세운에서 한 칸의 천간/지지 십성 묶음.
+ * 응답상 daeun 은 ganCategory/jiCategory/interpretation 포함, seun 은 gan/ji 만.
+ * ViewModel 정규화 후 양쪽 모두 sipseong 키로 통일.
+ */
+export type SipseongInfo = {
+  gan: string;             // 천간 십성 라벨 (시안 "정재" 등)
+  ji: string;              // 지지 십성 라벨
+  ganCategory?: string;
+  jiCategory?: string;
+  interpretation?: string;
+};
+
+// ─────────────────────────────────────────────────────
 // Daeun — 대운
 // ─────────────────────────────────────────────────────
 
-/** 단일 대운 항목 (10년). 시안 대운 카드 한 칸에 매핑. */
+/**
+ * 단일 대운 항목 (10년). 시안 대운 카드 한 칸에 매핑.
+ *
+ * 정규화 필드(buildMyeongsikView 가 주입 — raw 응답엔 없음):
+ *   - isCurrent : 현재 만 나이가 [age_start, age_end] 범위에 들어가면 true
+ *   - ganElement / jiElement : ganji 2글자에서 derived 오행 계산
+ */
 export type DaeunItem = {
   sequence: number;
   age_start: number;
@@ -255,18 +278,18 @@ export type DaeunItem = {
   start_date?: string;
   year_start?: number;
   year_end?: number;
-  sipseong?: {
-    gan: string;             // 천간 십성 (시안 라벨 "정재" 등)
-    ji: string;              // 지지 십성
-    ganCategory?: string;
-    jiCategory?: string;
-    interpretation?: string;
-  };
+  sipseong?: SipseongInfo;
   twelveFortune?: TwelveFortuneItem;     // 시안 운성 라벨 ("양"/"장생" 등)
   wongukInteraction?: {
     yongsinRelation?: unknown;
     hapChungRelations?: unknown[];
   };
+  /** ViewModel 정규화 — 응답 + 현재 만 나이 비교 결과. 모름 시 false. */
+  isCurrent?: boolean;
+  /** ViewModel 정규화 — ganji[0] 한글 → derived 오행. 매핑 실패 시 undefined. */
+  ganElement?: string;
+  /** ViewModel 정규화 — ganji[1] 한글 → derived 오행. */
+  jiElement?: string;
 };
 
 export type Daeun = {
@@ -289,7 +312,13 @@ export type Daeun = {
 // Seun — 세운 (연간)
 // ─────────────────────────────────────────────────────
 
-/** 단일 세운 항목 (1년). 시안 연운 카드 한 칸에 매핑. */
+/**
+ * 단일 세운 항목 (1년). 시안 연운 카드 한 칸에 매핑.
+ *
+ * 정규화 필드(buildMyeongsikView 가 주입):
+ *   - sipseong   : raw 응답의 sipseongRelation 키를 통일 명칭으로 재매핑
+ *   - isCurrent  : seun 배열의 0번 = currentSeun 1건만 true
+ */
 export type SeunItem = {
   year: number;
   age: number;
@@ -299,13 +328,13 @@ export type SeunItem = {
   ji: string;
   ganElement?: string;       // 천간 오행
   jiElement?: string;        // 지지 오행
-  sipseongRelation?: {
-    gan: string;             // 시안 연운 라벨 ("식신"/"상관" 등)
-    ji: string;
-  };
+  /** ViewModel 정규화 — daeun 과 키 통일 (raw 응답은 sipseongRelation). */
+  sipseong?: SipseongInfo;
   interpretation?: string;
   hapChungRelations?: unknown[];
   twelveFortune?: TwelveFortuneItem;     // 시안 운성 라벨
+  /** ViewModel 정규화 — currentSeun 1건만 true. */
+  isCurrent?: boolean;
 };
 
 export type Seun = {

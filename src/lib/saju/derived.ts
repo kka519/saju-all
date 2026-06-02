@@ -149,6 +149,24 @@ const JIJI_OHENG: Record<string, Oheng> = {
 };
 
 /**
+ * 천간 한 글자 → 오행. 매핑에 없으면 undefined.
+ * countOheng 과 동일한 CHEONGAN_OHENG 테이블 사용 — 단일 글자 조회 헬퍼.
+ * 예: 갑→"목", 신(辛)→"금".
+ */
+export function getCheonganOheng(c: string): Oheng | undefined {
+  return CHEONGAN_OHENG[c];
+}
+
+/**
+ * 지지 한 글자 → 오행. 매핑에 없으면 undefined.
+ * countOheng 과 동일한 JIJI_OHENG 테이블 사용 — 단일 글자 조회 헬퍼.
+ * 예: 자→"수", 신(申)→"금".
+ */
+export function getJijiOheng(j: string): Oheng | undefined {
+  return JIJI_OHENG[j];
+}
+
+/**
  * myeongsik 의 8글자(천간 4 + 지지 4)에서 오행 개수 집계.
  *
  * - 시 미상(hour === null) 시 6글자만 집계 (해당 칸 무시).
