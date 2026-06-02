@@ -38,6 +38,15 @@
     --color-accent:      255 215 0;    /* #FFD700 */
     --color-accent-soft: 232 197 71;   /* #E8C547 */
     --color-border-night: 61 37 102;   /* #3D2566 */
+
+    /* 오행 5색 (5-B.1 — 옵션 C + 채도다운 B)
+       MyeongsikTable 셀의 left-border 4px 로만 사용. 글자색은 night-fg 유지.
+       토(#C9925A)는 황토 톤으로 starlight(#FFD700)/starlight-soft(#E8C547)와 색상 분리. */
+    --color-oheng-mok:  111 193 143;   /* #6FC18F 청록 */
+    --color-oheng-hwa:  229 113  92;   /* #E5715C 다홍 */
+    --color-oheng-to:   201 146  90;   /* #C9925A 황토 */
+    --color-oheng-geum: 184 196 214;   /* #B8C4D6 강철 */
+    --color-oheng-su:    92 124 201;   /* #5C7CC9 야간청 */
   }
 }
 

@@ -61,6 +61,13 @@ const config: Config = {
         "night-border":    "rgb(var(--color-border-night) / <alpha-value>)",
         starlight:         "rgb(var(--color-accent) / <alpha-value>)",
         "starlight-soft":  "rgb(var(--color-accent-soft) / <alpha-value>)",
+
+        // 오행 5색 (5-B.1) — MyeongsikTable left-border 전용.
+        "oheng-mok":   "rgb(var(--color-oheng-mok) / <alpha-value>)",
+        "oheng-hwa":   "rgb(var(--color-oheng-hwa) / <alpha-value>)",
+        "oheng-to":    "rgb(var(--color-oheng-to) / <alpha-value>)",
+        "oheng-geum":  "rgb(var(--color-oheng-geum) / <alpha-value>)",
+        "oheng-su":    "rgb(var(--color-oheng-su) / <alpha-value>)",
       },
       borderRadius: {
         lg: "var(--radius)",

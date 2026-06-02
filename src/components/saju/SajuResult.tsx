@@ -9,6 +9,7 @@ import Image from "next/image";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
 import { SectionMarkdown } from "@/components/saju/SectionMarkdown";
 import type { BirthInfo, SimpleMyeongsik } from "@/lib/saju/saju-api";
+import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
 import { dooriCardSrc, getResultDoori, type ResultSection } from "@/lib/saju/doori";
 import { SAJU_LOADING_MESSAGES } from "@/lib/loading-messages";
 
@@ -205,7 +206,8 @@ export function SajuResult({
         <h2 className="text-xs font-mono uppercase tracking-wider text-night-fg-muted mb-3">
           사주 명식
         </h2>
-        <MyeongsikTable myeongsik={myeongsik} />
+        {/* /demo 플로우는 full_analysis 미보유 → null 전달 (hasFullData=false 모드, 한자+오행 derived fallback). */}
+        <MyeongsikTable view={buildMyeongsikView(myeongsik, null)} />
       </section>
 
       {/* 5섹션 카드 — 섹션별 두리 등장 */}

@@ -1,9 +1,12 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
 import { ResultBody } from "@/components/saju/ResultBody";
 import { ZiweiChart } from "@/components/saju/ZiweiChart";
 import type { Myeongsik } from "@/lib/saju/manseryeok";
+import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
+import { getIljuAlias } from "@/lib/saju/gapja-alias";
 import { isZiweiSlug } from "@/lib/saju/ziwei";
 import { formatDate } from "@/lib/utils";
 
@@ -46,20 +49,49 @@ export default async function ResultPage({
     : { data: null };
 
   const myeongsik = result.myeongsik as unknown as Myeongsik;
+  // 5-B.1 — full_analysis null 일 때도 안전 (buildMyeongsikView 가 hasFullData=false 모드로 흡수).
+  const view = buildMyeongsikView(myeongsik, result.full_analysis);
+  // 5-B.2a — 일주 별칭 (색+동물). 매핑 외 글자면 undefined 반환 → 별칭 미노출.
+  const iljuAlias = getIljuAlias(
+    view.pillars.day.cheongan,
+    view.pillars.day.jiji,
+  );
 
   return (
     <div className="container py-12 max-w-2xl">
       <header className="mb-10">
-        <p className="text-xs font-mono text-mute mb-2">RESULT</p>
-        <h1 className="text-3xl font-semibold tracking-tight">{product?.name ?? "사주 풀이"}</h1>
-        <p className="mt-2 text-xs font-mono text-mute">
+        <p className="text-xs font-mono text-night-fg-muted mb-2">RESULT</p>
+        <h1 className="text-3xl font-semibold tracking-tight text-night-fg">
+          {product?.name ?? "사주 풀이"}
+        </h1>
+        <p className="mt-2 text-xs font-mono text-night-fg-muted">
           {result.llm_provider} · {result.llm_model} · {formatDate(result.created_at)}
         </p>
       </header>
 
       <section className="mb-12">
-        <h2 className="text-sm font-semibold mb-3 text-ink">사주 명식</h2>
-        <MyeongsikTable myeongsik={myeongsik} />
+        {/* 두리 헤더 — 명식 카드 상단. 5-B.2a 보강 — getIljuAlias("색+동물") 적용. */}
+        <div className="mb-6 flex items-center gap-4">
+          <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-full border border-night-border bg-night-secondary">
+            <Image
+              src="/characters/doori/doori-saju.png"
+              alt="두리"
+              fill
+              sizes="64px"
+              className="object-cover"
+            />
+          </div>
+          <div>
+            <p className="text-base font-semibold text-night-fg">
+              두리가 그대의 명식을 펼쳤어요 ✨
+            </p>
+            <p className="mt-1 text-sm text-night-fg-soft">
+              {view.pillars.day.cheongan}
+              {view.pillars.day.jiji}일주{iljuAlias ? ` · ${iljuAlias}` : ""}
+            </p>
+          </div>
+        </div>
+        <MyeongsikTable view={view} />
       </section>
 
       {/* 자미두수 명반 — 4개 상품(love-saju/couple-match/love-consulting/premium-saju)
@@ -70,7 +102,7 @@ export default async function ResultPage({
         !sajuInput.time_unknown &&
         sajuInput.birth_time && (
           <section className="mb-12">
-            <h2 className="text-sm font-semibold mb-3 text-ink">자미두수 명반</h2>
+            <h2 className="text-sm font-semibold mb-3 text-night-fg">자미두수 명반</h2>
             <ZiweiChart
               birthDate={sajuInput.birth_date}
               birthTime={sajuInput.birth_time}
