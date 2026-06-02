@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/server";
+import { DaeunSeunSlider } from "@/components/saju/DaeunSeunSlider";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
 import { ResultBody } from "@/components/saju/ResultBody";
 import { ZiweiChart } from "@/components/saju/ZiweiChart";
@@ -92,6 +93,9 @@ export default async function ResultPage({
           </div>
         </div>
         <MyeongsikTable view={view} />
+        <div className="mt-8">
+          <DaeunSeunSlider view={view} />
+        </div>
       </section>
 
       {/* 자미두수 명반 — 4개 상품(love-saju/couple-match/love-consulting/premium-saju)
