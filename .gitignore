@@ -20,3 +20,7 @@ scripts/test-ziwei-interpret.ts
 scripts/test-confirm-ziwei.ts
 scripts/test-ziwei-injection.ts
 scripts/test-wealth-prompt.ts
+
+# 개인 사주 데이터 포함 레퍼런스 (public repo 노출 금지)
+docs/report-reference/
+src/lib/report/template/source-reference.html

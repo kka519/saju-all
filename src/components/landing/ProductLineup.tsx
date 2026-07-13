@@ -4,14 +4,23 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/env";
 import { productsSeed } from "@/config/products.seed";
 
+type ProductCard = {
+  slug: string;
+  name: string;
+  description: string;
+  price: number;
+  original_price?: number | null;
+  badge_label?: string | null;
+};
+
 // Ollama: thin-border cards on the same canvas — no shadow, hairline only.
 export async function ProductLineup() {
-  let products: { slug: string; name: string; description: string; price: number }[] | null;
+  let products: ProductCard[] | null;
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
     const { data } = await supabase
       .from("products")
-      .select("slug, name, description, price")
+      .select("slug, name, description, price, original_price, badge_label")
       .eq("is_active", true)
       .order("display_order", { ascending: true });
     products = data;
@@ -19,7 +28,14 @@ export async function ProductLineup() {
     products = productsSeed
       .filter((p) => p.is_active)
       .sort((a, b) => a.display_order - b.display_order)
-      .map(({ slug, name, description, price }) => ({ slug, name, description, price }));
+      .map(({ slug, name, description, price, original_price, badge_label }) => ({
+        slug,
+        name,
+        description,
+        price,
+        original_price: original_price ?? null,
+        badge_label: badge_label ?? null,
+      }));
   }
 
   if (!products || products.length === 0) {
@@ -42,14 +58,26 @@ export async function ProductLineup() {
           <Link
             key={p.slug}
             href={`/products/${p.slug}`}
-            className="group block rounded-lg border border-night-border bg-night-secondary p-6 transition-colors hover:border-starlight hover:bg-night-elevated"
+            className="group relative block rounded-lg border border-night-border bg-night-secondary p-6 transition-colors hover:border-starlight hover:bg-night-elevated"
           >
+            {p.badge_label && (
+              <span className="absolute -top-2.5 right-4 inline-flex items-center rounded-full bg-amber-400 px-2.5 h-5 text-[10px] font-bold tracking-wide text-night-primary">
+                {p.badge_label}
+              </span>
+            )}
             <p className="text-base font-semibold text-night-fg">{p.name}</p>
             <p className="mt-1.5 text-sm text-night-fg-soft leading-relaxed line-clamp-2">
               {p.description}
             </p>
-            <p className="mt-5 text-lg font-mono font-medium text-starlight">
-              {formatKRW(p.price)}
+            <p className="mt-5 flex items-baseline gap-2">
+              {p.original_price && (
+                <span className="text-sm font-mono text-night-fg-muted line-through">
+                  {formatKRW(p.original_price)}
+                </span>
+              )}
+              <span className="text-lg font-mono font-medium text-starlight">
+                {formatKRW(p.price)}
+              </span>
             </p>
           </Link>
         ))}

@@ -122,6 +122,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "사주 입력 또는 상품 조회 실패" }, { status: 500 });
   }
 
+  // "인생 애널리스트 리포트"는 4파트 LLM 호출 + 차트 + PDF 렌더링까지 1~3분 걸려
+  // 이 결제-확인 요청 안에서 동기 처리하지 않는다. pending 행만 만들고 즉시 응답 —
+  // 실제 생성은 /api/reports/[id]/generate 가 after()로 백그라운드 실행.
+  if (product.slug === "life-analyst-report") {
+    const { data: report, error: reportErr } = await service
+      .from("life_analyst_reports")
+      .insert({ order_id: order.id })
+      .select("id")
+      .single();
+    if (reportErr || !report) {
+      return NextResponse.json(
+        { error: "리포트 생성 준비 실패", detail: reportErr?.message },
+        { status: 500 },
+      );
+    }
+    return NextResponse.json({ reportId: report.id });
+  }
+
   try {
     // 만세력/풀 분석: luckyloveme 키가 있으면 실제 API, 없거나 실패하면 mock 으로 fallback
     let myeongsik: Myeongsik;

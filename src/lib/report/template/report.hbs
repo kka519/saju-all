@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+{{{fontFaceCss}}}
+* { margin:0; padding:0; box-sizing:border-box; }
+@page { size:A4; margin:0; }
+body { font-family:'NotoKR', "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color:#222; font-size:9pt; line-height:1.55; counter-reset:rpage; }
+.page { width:210mm; height:297mm; padding:13mm 16mm 16mm 16mm; page-break-after:always; position:relative; overflow:hidden; counter-increment:rpage; }
+.page:last-child { page-break-after:auto; }
+.page::after { content:"본 자료는 명리학 관점의 참고용 분석이며 금융투자상품의 매매 권유가 아닙니다  ·  LUNA LIFE RESEARCH  ·  " counter(rpage) " / 20"; position:absolute; bottom:5mm; left:0; right:0; text-align:center; font-size:6.5pt; color:#999; }
+
+.band { background:#1A1A2E; color:#fff; margin:-13mm -16mm 7mm -16mm; padding:6mm 16mm 5mm 16mm; }
+.band .brand { font-size:8pt; letter-spacing:2.5px; color:#C9A84C; font-weight:bold; }
+.band .doctype { float:right; font-size:8pt; color:#aab; }
+.band h2 { font-size:11pt; font-weight:bold; margin-top:1.5mm; }
+.part { color:#C9A84C; font-size:8pt; letter-spacing:1px; }
+
+h1.title { font-family:'NotoSerifKR', serif; font-weight:bold; font-size:19pt; color:#1A1A2E; line-height:1.35; margin:2mm 0 1mm 0; }
+.subtitle { font-size:9.5pt; color:#666; margin-bottom:5mm; }
+
+.ratingbox { width:62mm; float:right; border-top:3px solid #C0574F; background:#F7F5F0; padding:4mm; margin:0 0 4mm 6mm; }
+.ratingbox .op { font-size:8pt; color:#888; }
+.ratingbox .val { font-size:16pt; font-weight:bold; color:#C0574F; margin-bottom:2mm;}
+.ratingbox .val small { font-size:9pt; color:#666; font-weight:bold;}
+.ratingbox table { width:100%; border-collapse:collapse; font-size:8pt; }
+.ratingbox td { padding:1.2mm 0; border-bottom:1px solid #E5E0D5; }
+.ratingbox td:last-child { text-align:right; font-weight:bold; }
+
+.sec { font-size:10.5pt; font-weight:bold; color:#1A1A2E; border-left:3.5px solid #C9A84C; padding-left:2.5mm; margin:5mm 0 2.5mm 0; }
+p.body { text-align:justify; margin-bottom:2.5mm; }
+ul.summary { list-style:none; margin:2mm 0 4mm 0; }
+ul.summary li { padding-left:5mm; position:relative; margin-bottom:2.2mm; text-align:justify; }
+ul.summary li:before { content:"■"; color:#C9A84C; position:absolute; left:0; font-size:7pt; top:1px; }
+ul.summary b { color:#1A1A2E; }
+
+table.grid { width:100%; border-collapse:collapse; font-size:8.5pt; margin:2mm 0 3.5mm 0;}
+table.grid th { background:#1A1A2E; color:#fff; padding:1.7mm 2mm; font-weight:bold; text-align:center; }
+table.grid td { border-bottom:1px solid #ddd; padding:1.7mm 2mm; text-align:center; }
+table.grid td.l { text-align:left; }
+table.grid tr.hl { background:#FBF6E9; }
+table.grid .hanja { font-size:14pt; font-weight:bold; color:#1A1A2E; }
+table.grid .hanja small { font-size:8pt; color:#888; font-weight:normal; margin-left:1mm; }
+table.grid.small { font-size:8pt; }
+table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
+
+.chart { width:100%; margin:1mm 0 2mm 0; }
+.chart svg { width:100%; height:auto; display:block; }
+
+.callout { background:#F7F5F0; border-left:3.5px solid #1A1A2E; padding:3mm 4mm; margin:3mm 0; }
+.callout b { color:#1A1A2E; }
+.warn { background:#FBEFEE; border-left:3.5px solid #C0574F; padding:3mm 4mm; margin:3mm 0; font-size:8.5pt;}
+.gold { background:#FBF6E9; border-left:3.5px solid #C9A84C; padding:3mm 4mm; margin:3mm 0; font-size:8.5pt;}
+
+.tag { display:inline-block; font-size:7pt; font-weight:bold; padding:0.3mm 2mm; border-radius:2px; color:#fff; }
+.t-up { background:#C0574F; } .t-dn { background:#2E6DB4; } .t-md { background:#8A8FA0; } .t-gd { background:#C9A84C; }
+
+.chk { font-size:8.5pt; border:1px solid #ddd; border-left:3px solid #C9A84C; padding:2.2mm 3mm; margin-bottom:1.8mm; }
+.chk .box { color:#888; font-size:8.5pt; float:right; white-space:nowrap; margin-left:3mm;}
+
+.flow { text-align:center; margin:3mm 0; }
+.fbox { display:inline-block; border:1.5px solid #1A1A2E; padding:2.5mm 4mm; font-size:8.5pt; font-weight:bold; color:#1A1A2E; background:#fff; vertical-align:middle;}
+.fbox small { display:block; font-weight:normal; color:#777; font-size:7.5pt;}
+.fbox.gold-box { border-color:#C9A84C; color:#9A7B2D; }
+.farr { display:inline-block; color:#C9A84C; font-size:12pt; font-weight:bold; margin:0 2mm; vertical-align:middle;}
+
+.toc { list-style:none; margin:3mm 0; }
+.toc li { padding:1.6mm 0; border-bottom:1px dotted #ccc; font-size:9pt; }
+.toc .pt { color:#C9A84C; font-weight:bold; margin-right:2mm; font-size:8pt;}
+.toc .pg { float:right; color:#888; }
+
+.compliance { font-size:7.5pt; color:#777; line-height:1.6; border-top:1px solid #ccc; padding-top:3mm; margin-top:4mm; text-align:justify;}
+.analyst { font-size:8pt; color:#555; margin-top:1mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ P.1 표지 ============ -->
+<div class="page">
+  <div class="band">
+    <span class="brand">{{meta.brand}}</span>
+    <span class="doctype">인생 애널리스트 리포트 | {{meta.reportDate}}</span>
+    <h2>인생 애널리스트 보고서 — 데이터로 운명을 설계한다</h2>
+  </div>
+
+  <div class="ratingbox">
+    <div class="op">투자의견 (Life Rating)</div>
+    <div class="val">{{rating.opinion}} <small>{{rating.sub}}</small></div>
+    <table>
+      <tr><td>현재 운세지수</td><td>{{rating.currentScore}} pt</td></tr>
+      <tr><td>목표 운세지수</td><td>{{rating.targetScore}} pt</td></tr>
+      <tr><td>상승여력 (Upside)</td><td style="color:#C0574F">{{rating.upsidePct}}%</td></tr>
+      <tr><td>현재 대운</td><td>{{rating.currentDaeunLabel}}</td></tr>
+      <tr><td>사이클 위치</td><td>{{rating.cyclePosition}}</td></tr>
+      <tr><td>올해 골든 세운</td><td>{{rating.goldenSeunLabel}}</td></tr>
+      <tr><td>골든 윈도우(월)</td><td>{{rating.goldenWolunLabel}}</td></tr>
+    </table>
+  </div>
+
+  <h1 class="title">{{md headline}}</h1>
+  <div class="subtitle">명식 {{meta.myeongsikId}} | {{meta.birthLabel}}<br>{{pillars.year.cheonganHanja}}{{pillars.year.jijiHanja}}年 {{pillars.month.cheonganHanja}}{{pillars.month.jijiHanja}}月 {{pillars.day.cheonganHanja}}{{pillars.day.jijiHanja}}日{{#if pillars.hour}} {{pillars.hour.cheonganHanja}}{{pillars.hour.jijiHanja}}時{{/if}} · 만세력 교차검증 완료</div>
+
+  <div class="sec">명식 개요 (Four Pillars)</div>
+  <table class="grid">
+    <tr><th style="width:13%"></th><th>시주 (時)</th><th>일주 (日)</th><th>월주 (月)</th><th>연주 (年)</th></tr>
+    <tr><td><b>천간</b></td><td class="hanja">{{#if pillars.hour}}{{pillars.hour.cheonganHanja}}{{else}}—{{/if}}</td><td class="hanja" style="color:#C9A84C">{{pillars.day.cheonganHanja}}</td><td class="hanja">{{pillars.month.cheonganHanja}}</td><td class="hanja">{{pillars.year.cheonganHanja}}</td></tr>
+    <tr><td><b>지지</b></td><td class="hanja">{{#if pillars.hour}}{{pillars.hour.jijiHanja}}{{else}}—{{/if}}</td><td class="hanja">{{pillars.day.jijiHanja}}</td><td class="hanja">{{pillars.month.jijiHanja}}</td><td class="hanja">{{pillars.year.jijiHanja}}</td></tr>
+    <tr><td><b>십신</b></td><td>{{#if pillars.hour}}{{pillars.hour.sipseongCheongan}} / {{pillars.hour.sipseongJiji}}{{else}}—{{/if}}</td><td>일간(我) / {{pillars.day.sipseongJiji}}</td><td>{{pillars.month.sipseongCheongan}} / {{pillars.month.sipseongJiji}}</td><td>{{pillars.year.sipseongCheongan}} / {{pillars.year.sipseongJiji}}</td></tr>
+  </table>
+
+  <div class="sec">CONTENTS</div>
+  <ul class="toc">
+    <li><span class="pt">PART 0</span> Executive Summary · 이 리포트를 읽는 법 <span class="pg">p.2 ~ 3</span></li>
+    <li><span class="pt">PART I</span> 종목 분석 — 일간 · 오행 포트폴리오 · 지배구조 · 공시사항 <span class="pg">p.4 ~ 7</span></li>
+    <li><span class="pt">PART II</span> 백테스트 — 지난 대운 검증 · 체감 채점표 <span class="pg">p.8 ~ 9</span></li>
+    <li><span class="pt">PART III</span> 사이클 전망 — 대운 · 세운 · 분기 · 월별 캘린더 <span class="pg">p.10 ~ 14</span></li>
+    <li><span class="pt">PART IV</span> 실행 전략 — 수익모델 · 리스크 관리 · 관계 자본 · 액션 플랜 <span class="pg">p.15 ~ 18</span></li>
+    <li><span class="pt">PART V</span> 리스크 공시 · FAQ · 다음 단계 안내 <span class="pg">p.19 ~ 20</span></li>
+  </ul>
+
+  <div class="analyst">담당 애널리스트 : LUNA AI 리서치엔진 v1.0 | 검수 : 명리 데이터랩</div>
+</div>
+
+<!-- ============ P.2 Executive Summary ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART 0</span> &nbsp;Executive Summary</h2></div>
+
+  <ul class="summary">
+    {{#each execSummary}}
+    <li>{{md this}}</li>
+    {{/each}}
+  </ul>
+
+  <div class="sec">왜 이 리포트는 100장이 아닌가</div>
+  <p class="body">시중의 사주 리포트 중에는 100페이지를 넘는 것들이 있다. 그 분량의 대부분은 누구에게나 똑같이 들어가는 오행 일반론과 반복 문단이다. 본 리서치센터는 반대로 설계했다 — <b>귀하의 여덟 글자에서 도출되지 않은 문장은 싣지 않는다.</b> 20페이지의 각 장은 "읽고 나서 무엇을 결정할 수 있는가"를 기준으로 채택되었고, 그 기준을 통과하지 못한 내용은 분량이 아깝더라도 뺐다. 아래는 각 파트가 답하는 질문이다.</p>
+
+  <table class="grid small">
+    <tr><th style="width:18%">파트</th><th style="width:40%">답하는 질문</th><th>내리게 되는 결정</th></tr>
+    <tr><td>I. 종목 분석</td><td class="l">나는 구조적으로 어떤 사람인가</td><td class="l">강점의 사용처, 약점의 보완 방식</td></tr>
+    <tr><td>II. 백테스트</td><td class="l">이 분석은 믿을 만한가</td><td class="l">지난 대운 대조 후 신뢰도 직접 채점</td></tr>
+    <tr><td>III. 사이클</td><td class="l">언제 움직이고 언제 멈추나</td><td class="l">연·분기·월 단위 타이밍</td></tr>
+    <tr><td>IV. 실행 전략</td><td class="l">그래서 지금 무엇을 하나</td><td class="l">30일 / 1년 / 10년 액션 플랜</td></tr>
+  </table>
+
+  <div class="callout"><b>본 리포트의 핵심 문장 하나를 꼽는다면.</b> {{md keySentence}}</div>
+</div>
+
+<!-- ============ P.3 읽는 법 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART 0</span> &nbsp;이 리포트를 읽는 법 — 명리 용어 · 투자 용어 번역표</h2></div>
+
+  <p class="body">본 리포트는 사주명리의 개념을 증권사 리서치의 언어로 번역해 서술한다. 아래 번역표만 익히면 명리 지식이 전혀 없어도 전체를 읽을 수 있다.</p>
+
+  <table class="grid small">
+    <tr><th style="width:16%">명리 용어</th><th style="width:20%">투자 용어 번역</th><th>의미</th></tr>
+    {{#each termTranslationRows}}
+    <tr><td><b>{{this.term}}</b></td><td>{{this.translation}}</td><td class="l">{{this.meaning}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">세 가지 독해 원칙</div>
+  <ul class="summary">
+    {{#each readingPrinciples}}
+    <li>{{md this}}</li>
+    {{/each}}
+  </ul>
+</div>
+
+<!-- ============ P.4 명식 원판 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART I</span> &nbsp;명식 원판 — 기본 스펙 시트</h2></div>
+
+  <div class="sec">사주 원국 (Full Chart)</div>
+  <table class="grid">
+    <tr><th style="width:13%"></th><th>시주 (時)</th><th>일주 (日)</th><th>월주 (月)</th><th>연주 (年)</th></tr>
+    <tr><td><b>천간</b></td><td class="hanja">{{#if pillars.hour}}{{pillars.hour.cheonganHanja}} <small>{{pillars.hour.cheonganReading}}</small>{{else}}—{{/if}}</td><td class="hanja" style="color:#C9A84C">{{pillars.day.cheonganHanja}} <small>{{pillars.day.cheonganReading}}</small></td><td class="hanja">{{pillars.month.cheonganHanja}} <small>{{pillars.month.cheonganReading}}</small></td><td class="hanja">{{pillars.year.cheonganHanja}} <small>{{pillars.year.cheonganReading}}</small></td></tr>
+    <tr><td><b>십신(간)</b></td><td>{{#if pillars.hour}}{{pillars.hour.sipseongCheongan}}{{else}}—{{/if}}</td><td style="color:#C9A84C"><b>일간 (나)</b></td><td>{{pillars.month.sipseongCheongan}}</td><td>{{pillars.year.sipseongCheongan}}</td></tr>
+    <tr><td><b>지지</b></td><td class="hanja">{{#if pillars.hour}}{{pillars.hour.jijiHanja}} <small>{{pillars.hour.jijiReading}}</small>{{else}}—{{/if}}</td><td class="hanja">{{pillars.day.jijiHanja}} <small>{{pillars.day.jijiReading}}</small></td><td class="hanja">{{pillars.month.jijiHanja}} <small>{{pillars.month.jijiReading}}</small></td><td class="hanja">{{pillars.year.jijiHanja}} <small>{{pillars.year.jijiReading}}</small></td></tr>
+    <tr><td><b>십신(지)</b></td><td>{{#if pillars.hour}}{{pillars.hour.sipseongJiji}}{{else}}—{{/if}}</td><td>{{pillars.day.sipseongJiji}}</td><td>{{pillars.month.sipseongJiji}}</td><td>{{pillars.year.sipseongJiji}}</td></tr>
+    <tr><td><b>지장간</b></td><td>{{#if pillars.hour}}{{pillars.hour.jijanggan}}{{else}}—{{/if}}</td><td>{{pillars.day.jijanggan}}</td><td>{{pillars.month.jijanggan}}</td><td>{{pillars.year.jijanggan}}</td></tr>
+    <tr><td><b>12운성</b></td><td>{{#if pillars.hour}}{{pillars.hour.twelveFortune}}{{else}}—{{/if}}</td><td>{{pillars.day.twelveFortune}}</td><td>{{pillars.month.twelveFortune}}</td><td>{{pillars.year.twelveFortune}}</td></tr>
+  </table>
+
+  <table class="grid small">
+    <tr><th style="width:14%">구분</th><th style="width:34%">내용</th><th>해설</th></tr>
+    <tr><td>출생</td><td class="l">{{meta.birthLabel}}</td><td class="l">{{birthNote}}</td></tr>
+    <tr><td>오행 수급</td><td class="l">木{{ohaengCount.목}} · 火{{ohaengCount.화}} · 土{{ohaengCount.토}} · 金{{ohaengCount.금}} · 水{{ohaengCount.수}}</td><td class="l">{{specNotes.ohaeng}}</td></tr>
+    <tr><td>격국</td><td class="l">{{gyeokgukName}}</td><td class="l">{{specNotes.gyeokguk}}</td></tr>
+    <tr><td>신강약</td><td class="l">{{sinKang}} (점수 {{sinKangScore}})</td><td class="l">{{specNotes.strength}}</td></tr>
+    <tr><td>용신 · 희신</td><td class="l">{{yongsinOheng}} · {{huisinOheng}}</td><td class="l">{{specNotes.yongsin}}</td></tr>
+    <tr><td>기신</td><td class="l">{{gisinOheng}}</td><td class="l">{{specNotes.gisin}}</td></tr>
+    <tr><td>공망</td><td class="l">{{gongmang}}</td><td class="l">{{specNotes.gongmang}}</td></tr>
+    <tr><td>천을귀인</td><td class="l">{{cheoneulJiji}}</td><td class="l">{{specNotes.cheoneul}}</td></tr>
+  </table>
+
+  <div class="callout"><b>스펙 요약.</b> {{md specComment}}</div>
+</div>
+
+<!-- ============ P.5 일간 심층 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART I</span> &nbsp;일간 심층 분석 — {{ilganEpithet}}</h2></div>
+
+  <div class="sec">종목 성격 : {{ilganSecTitle}}</div>
+  {{#each ilganDeep}}
+  <p class="body">{{md this}}</p>
+  {{/each}}
+
+  <div class="sec">의사결정 스타일 — 경영진 분석</div>
+  <table class="grid small">
+    <tr><th style="width:22%">항목</th><th style="width:38%">진단</th><th>근거 (명식)</th></tr>
+    {{#each decisionStyle}}
+    <tr><td>{{this.item}}</td><td class="l">{{this.diagnosis}}</td><td class="l">{{this.basis}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">이 명식이 반복해온 패턴</div>
+  <p class="body">{{md pattern}}</p>
+
+  <div class="gold">{{md strengthSummary}} {{md complementTasks}}</div>
+</div>
+
+<!-- ============ P.6 오행 포트폴리오 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART I</span> &nbsp;오행 포트폴리오 · 십신 지배구조</h2></div>
+
+  <div class="chart">{{{ohaengChartSvg}}}</div>
+
+  <div class="sec">밸류체인 해설</div>
+  <p class="body">{{md valuechainComment}}</p>
+
+  <div class="flow">
+    <span class="fbox">인성<small>충전 · 지식 · 문서</small></span><span class="farr">→</span><span class="fbox gold-box">일간 {{pillars.day.cheonganHanja}}<small>{{dayGan}} — 나</small></span><span class="farr">→</span><span class="fbox">식상<small>생산 · 활동</small></span><span class="farr">→</span><span class="fbox">재성<small>수익</small></span><span class="farr">→</span><span class="fbox">관성<small>신용 · 명예</small></span>
+  </div>
+  <p class="body" style="font-size:8.5pt; color:#555;">위 사이클이 명식 안에서 어떻게 순환하는지가 이 장의 핵심이다 — 배우면(인성) 힘이 나고, 힘이 나면 만들고(식상), 만들면 돈이 되고(재성), 돈이 신용(관성)이 되어 다시 기회를 부른다.</p>
+
+  <div class="warn">{{md jaedaWarning}}</div>
+</div>
+
+<!-- ============ P.7 신살 공시 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART I</span> &nbsp;특이사항 공시 — 신살 · 귀인</h2></div>
+
+  <p class="body">신살(神殺)은 명식의 '특약 조항'이다. 좋은 것은 옵션(권리)으로, 주의할 것은 약정(의무)으로 읽으면 된다. 본 명식의 공시사항은 다음과 같다.</p>
+
+  <table class="grid small">
+    <tr><th style="width:20%">항목</th><th>내용 및 해설</th></tr>
+    {{#each sinsalRows}}
+    <tr><td><b>{{this.name}}</b></td><td class="l">{{md this.note}}</td></tr>
+    {{/each}}
+  </table>
+</div>
+
+<!-- ============ P.8 백테스트 연대기 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART II</span> &nbsp;백테스트 ① — 지난 대운 연대기</h2></div>
+
+  <p class="body">미래를 말하기 전에 과거를 검증한다. 아래는 귀하의 지난 대운을 <b>명식만 보고</b> 재구성한 것이다(개인 정보를 제공받지 않았다). 다음 페이지의 채점표로 적중 여부를 직접 확인하시라 — 이 검증을 통과하지 못하면 PART III의 전망도 참고 가치가 낮다고 보는 것이 본 센터의 원칙이다.</p>
+
+  {{#each backtest}}
+  <p class="body">{{md this}}</p>
+  {{/each}}
+
+  <div class="gold"><b>백테스트의 논리.</b> 위 서술은 점(占)이 아니라 구조 해석이다 — 같은 명식이면 같은 시황을 지난다. 다만 시황 안에서의 개인 선택은 저마다 달라, 서술과 실제의 오차는 반드시 존재한다. 그 오차의 크기를 다음 페이지에서 직접 측정해 보시라.</div>
+</div>
+
+<!-- ============ P.9 백테스트 채점표 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART II</span> &nbsp;백테스트 ② — 체감 검증 채점표</h2></div>
+
+  <p class="body">지난 세월을 돌아보며 각 문항에 체크하시라. 배우자나 가족과 함께 채점하면 객관도가 올라간다.</p>
+
+  <div class="sec">구조 검증 (명식 자체)</div>
+  {{#each checklistStructure}}
+  <div class="chk">{{this}} <span class="box">□ 맞음 &nbsp;□ 아님</span></div>
+  {{/each}}
+
+  <div class="sec">시기 검증 (대운별)</div>
+  {{#each checklistTiming}}
+  <div class="chk">{{this}} <span class="box">□ 맞음 &nbsp;□ 아님</span></div>
+  {{/each}}
+
+  <div class="sec">채점 가이드</div>
+  <table class="grid small">
+    <tr><th style="width:22%">'맞음' 개수</th><th>해석</th></tr>
+    {{#each scoringGuide}}
+    <tr><td><b>{{this.range}}</b></td><td class="l">{{this.interpretation}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="callout"><b>왜 채점을 시키는가.</b> {{accuracyStatement}}</div>
+</div>
+
+<!-- ============ P.10 대운 차트 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART III</span> &nbsp;대운 사이클 — 10년 봉 차트 (전 생애)</h2></div>
+
+  <div class="chart">{{{daeunChartSvg}}}</div>
+
+  <table class="grid small">
+    <tr><th>구간</th><th>대운</th><th>십신</th><th style="width:8%">지수</th><th style="width:10%">의견</th><th>코멘트</th></tr>
+    {{#each daeunTable}}
+    <tr{{#if this.isCurrent}} class="hl"{{/if}}><td>{{this.label}}</td><td>{{this.ganjiHanja}}({{this.ganji}}){{#if this.isCurrent}} <b>현재</b>{{/if}}</td><td>{{this.sipseongLabel}}</td><td><b>{{this.score}}</b></td><td><span class="tag {{this.badge.cls}}">{{this.badge.label}}</span></td><td class="l">{{md this.comment}}</td></tr>
+    {{/each}}
+  </table>
+
+  <p class="body">{{md daeunNarrative}}</p>
+</div>
+
+<!-- ============ P.11 현재 대운 심층 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART III</span> &nbsp;현재 대운 심층 — {{rating.currentDaeunLabel}}</h2></div>
+
+  <div class="sec">이 10년의 정체</div>
+  <p class="body">{{md daeunDeep}}</p>
+
+  <div class="sec">유의 조항</div>
+  {{#each daeunCaveats}}
+  <div class="warn">{{md this}}</div>
+  {{/each}}
+</div>
+
+<!-- ============ P.12 세운 캘린더 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART III</span> &nbsp;연간 전망 — 세운 캘린더</h2></div>
+
+  <div class="chart">{{{seunChartSvg}}}</div>
+
+  <table class="grid small">
+    <tr><th style="width:10%">연도</th><th style="width:11%">간지</th><th style="width:13%">십신</th><th style="width:8%">지수</th><th style="width:10%">의견</th><th>운용 전략</th></tr>
+    {{#each seunTable}}
+    <tr{{#if this.isCurrent}} class="hl"{{/if}}><td><b>{{this.label}}</b></td><td>{{this.ganjiHanja}}</td><td>{{this.sipseongLabel}}</td><td><b>{{this.score}}</b></td><td><span class="tag {{this.badge.cls}}">{{this.badge.label}}</span></td><td class="l">{{md this.strategy}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="callout">{{md fiveYearSummary}}</div>
+</div>
+
+<!-- ============ P.13 분기별 가이드 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART III</span> &nbsp;올해 심층 — 분기별 운용 가이드</h2></div>
+
+  <p class="body">{{md quarterIntro}}</p>
+
+  <div class="sec">분기별 상세</div>
+  <table class="grid small">
+    <tr><th style="width:12%">분기</th><th style="width:22%">월운 (절기)</th><th>진단 및 권고</th></tr>
+    {{#each quarterRows}}
+    <tr><td><b>{{this.label}}</b></td><td>{{this.wolunGanji}}</td><td class="l">{{md this.text}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="gold">{{md goldenWindowNote}}</div>
+
+  <div class="sec">올해 하지 말 것</div>
+  <ul class="summary">
+    {{#each donts}}
+    <li>{{md this}}</li>
+    {{/each}}
+  </ul>
+</div>
+
+<!-- ============ P.14 월별 캘린더 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART III</span> &nbsp;월별 타이밍 캘린더</h2></div>
+
+  <div class="chart">{{{wolunChartSvg}}}</div>
+
+  <table class="grid small">
+    <tr><th style="width:14%">월</th><th style="width:12%">월주</th><th style="width:14%">십신</th><th style="width:8%">지수</th><th>이 달의 운용</th></tr>
+    {{#each wolunTable}}
+    <tr{{#if this.isCurrent}} class="hl"{{/if}}><td>{{this.monthLabel}}</td><td>{{this.ganjiHanja}}</td><td>{{this.sipseongLabel}}</td><td><b>{{this.score}}</b></td><td class="l">{{md this.note}}</td></tr>
+    {{/each}}
+  </table>
+
+  <p class="body" style="font-size:8.5pt;color:#555;">※ 월 구분은 절기(입춘·경칩…) 기준이며 양력 월초와 3~7일 오차가 있다.</p>
+</div>
+
+<!-- ============ P.15 수익모델 전략 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART IV</span> &nbsp;재물 전략 ① — 수익모델의 운용</h2></div>
+
+  <div class="sec">이 명식의 수익 구조</div>
+  <p class="body">{{md profitIntro}}</p>
+
+  <div class="flow">
+    <span class="fbox">식상<small>생산 엔진</small></span><span class="farr">→</span><span class="fbox gold-box">안정 라인<small>반복·고정 수익</small></span><span class="farr">+</span><span class="fbox">기회 라인<small>변동 수익</small></span><span class="farr">→</span><span class="fbox">인성<small>문서 · 자산 확정</small></span>
+  </div>
+
+  <div class="sec">권고 포트폴리오</div>
+  <table class="grid small">
+    <tr><th style="width:16%">항목</th><th style="width:42%">안정 라인</th><th>기회 라인</th></tr>
+    {{#each portfolioRows}}
+    <tr><td>{{this.item}}</td><td class="l">{{md this.fixed}}</td><td class="l">{{md this.opportunity}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">강점을 돈으로 바꾸는 세 개의 관로</div>
+  <ul class="summary">
+    {{#each profitChannels}}
+    <li>{{md this.lead}} {{md this.body}}</li>
+    {{/each}}
+  </ul>
+</div>
+
+<!-- ============ P.16 리스크 관리 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART IV</span> &nbsp;재물 전략 ② — 손실 패턴과 리스크 관리</h2></div>
+
+  <div class="sec">이 명식의 손실 유형</div>
+  <table class="grid small">
+    <tr><th style="width:15%">유형</th><th style="width:28%">구조적 원인</th><th>증상 및 차단 장치</th></tr>
+    {{#each riskTypes}}
+    <tr><td><b>{{this.type}}</b></td><td class="l">{{this.cause}}</td><td class="l">{{md this.remedy}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">리스크 캘린더 — 언제 무엇을 조심하나</div>
+  <table class="grid small">
+    <tr><th style="width:24%">시기</th><th>주의 사항</th></tr>
+    {{#each riskCalendar}}
+    <tr><td><b>{{this.timing}}</b></td><td class="l">{{md this.note}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">건강 — 재무제표의 감가상각 항목</div>
+  <p class="body">{{md healthNote}}</p>
+
+  <div class="warn">{{md riskCallout}}</div>
+</div>
+
+<!-- ============ P.17 관계 자본 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART IV</span> &nbsp;관계 자본 — 조력자 운용 전략</h2></div>
+
+  <div class="sec">이 명식의 관계 구조</div>
+  <p class="body">{{md relationIntro}}</p>
+
+  <div class="sec">조력자 매칭 가이드</div>
+  <table class="grid small">
+    <tr><th style="width:18%">유형</th><th style="width:42%">이런 기운의 사람</th><th>맡길 역할</th></tr>
+    {{#each helperRows}}
+    <tr><td><b>{{this.type}}</b></td><td class="l">{{md this.person}}</td><td class="l">{{md this.role}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="sec">관계 운용 3원칙</div>
+  <ul class="summary">
+    {{#each relationPrinciples}}
+    <li>{{md this.lead}} {{md this.body}}</li>
+    {{/each}}
+  </ul>
+
+  <div class="gold">{{md relationCallout}}</div>
+</div>
+
+<!-- ============ P.18 액션 플랜 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART IV</span> &nbsp;액션 플랜 — 30일 · 1년 · 10년</h2></div>
+
+  <div class="sec">향후 30일</div>
+  {{#each actions30days}}
+  <div class="chk">{{md this}} <span class="box">□ 완료</span></div>
+  {{/each}}
+
+  <div class="sec">1년 안에</div>
+  {{#each actions1year}}
+  <div class="chk">{{md this}} <span class="box">□ 완료</span></div>
+  {{/each}}
+
+  <div class="sec">이번 대운 10년</div>
+  {{#each actions10year}}
+  <div class="chk">{{md this}} <span class="box">□ 완료</span></div>
+  {{/each}}
+
+  <div class="gold"><b>이 페이지의 사용법.</b> 체크리스트는 리포트에서 가장 값싼 페이지처럼 보이지만, 실행되는 순간 가장 비싼 페이지가 된다. 운은 시황이고 실행이 실적이다 — 시황이 우호적인 지금, 매수 주문에 해당하는 것이 바로 이 체크리스트다.</div>
+</div>
+
+<!-- ============ P.19 공시+FAQ ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART V</span> &nbsp;리스크 공시 · FAQ</h2></div>
+
+  <div class="sec">리스크 공시 (Risk Disclosure)</div>
+  <p class="body">{{riskDisclosure}}</p>
+
+  <div class="sec">자주 묻는 질문</div>
+  <table class="grid small">
+    <tr><th style="width:34%">질문</th><th>답변</th></tr>
+    {{#each faqRows}}
+    <tr><td class="l">{{this.question}}</td><td class="l">{{this.answer}}</td></tr>
+    {{/each}}
+  </table>
+</div>
+
+<!-- ============ P.20 클로징 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">명식 {{meta.myeongsikId}}</span>
+    <h2><span class="part">PART V</span> &nbsp;마치며 — 다음 단계 안내</h2></div>
+
+  <div class="sec">본 리포트의 결론</div>
+  <ul class="summary">
+    {{#each closing}}
+    <li>{{md this}}</li>
+    {{/each}}
+  </ul>
+
+  <div class="sec">더 궁금한 것이 있다면</div>
+  <table class="grid small">
+    <tr><th style="width:30%">서비스</th><th style="width:40%">내용</th><th>이용</th></tr>
+    {{#each upsellRows}}
+    <tr{{#if this.highlight}} class="hl"{{/if}}><td>{{this.service}}</td><td class="l">{{this.content}}</td><td class="l">{{this.usage}}</td></tr>
+    {{/each}}
+  </table>
+
+  <p class="body" style="margin-top:3mm;"><b>LUNA LIFE RESEARCH 드림</b></p>
+
+  <div class="compliance">
+    <b>Compliance Notice.</b> {{complianceNotice}}
+  </div>
+</div>
+
+</body>
+</html>

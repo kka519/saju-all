@@ -9,6 +9,10 @@ export type ProductSeed = {
   name: string;
   description: string;
   price: number;
+  /** 할인 전 정가. 있으면 카드에 취소선으로 표시. */
+  original_price?: number;
+  /** 상품 카드에 노출할 배지 텍스트 (예: "BEST"). */
+  badge_label?: string;
   display_order: number;
   is_active: boolean;
 };
@@ -20,6 +24,16 @@ export const productsSeed: ProductSeed[] = [
     description: "오늘 하루 흐름을 두리가 한 줄로 짚어드려요. 매일 가볍게 만나봐요.",
     price: 880,
     display_order: 10,
+    is_active: true,
+  },
+  {
+    slug: "life-analyst-report",
+    name: "인생 애널리스트 리포트",
+    description: "증권사 애널리스트가 종목 리포트 쓰듯, 두리가 당신의 사주를 20페이지 리포트로 분석해드려요.",
+    price: 9900,
+    original_price: 39900,
+    badge_label: "BEST",
+    display_order: 15,
     is_active: true,
   },
   {

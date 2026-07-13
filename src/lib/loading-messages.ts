@@ -13,3 +13,19 @@ export const SAJU_LOADING_MESSAGES = [
   "오행이 어떻게 어우러지는지 두리가 보고 있어요...",
   "조금만 더 기다려 주세요, 곧 풀어드릴게요...",
 ] as const;
+
+// 인생 애널리스트 리포트 진행 페이지 — stage 컬럼 값 → 표시 메시지.
+// LLM 4파트 + 차트 + PDF 렌더링까지 1~3분 걸리므로 단계별로 실감나게 안내.
+export const REPORT_STAGE_MESSAGES: Record<string, string> = {
+  queued: "두리가 리포트 작성을 준비하고 있어요...",
+  normalizing: "만세력 데이터를 정리하는 중이에요...",
+  llm_parts: "20페이지 분량의 분석 원고를 쓰는 중이에요... (가장 오래 걸리는 단계예요)",
+  llm_part1: "종목 분석(일간·오행)을 쓰는 중이에요...",
+  llm_part2: "백테스트 챕터를 쓰는 중이에요...",
+  llm_part3: "대운·세운 사이클 전망을 쓰는 중이에요...",
+  llm_part4: "실행 전략과 결론을 정리하는 중이에요...",
+  rendering: "20페이지 리포트로 조판하는 중이에요...",
+  rendering_pdf: "PDF로 렌더링하는 중이에요...",
+  uploading: "거의 다 됐어요, 저장하는 중이에요...",
+  done: "완성됐어요!",
+};

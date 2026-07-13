@@ -12,6 +12,7 @@ export type Json =
 export type OrderStatus = "pending" | "paid" | "failed";
 export type CalendarKind = "solar" | "lunar";
 export type GenderKind = "male" | "female";
+export type ReportStatus = "pending" | "generating" | "done" | "failed"; // 0007 마이그레이션
 
 type ProfileRow = {
   id: string;
@@ -28,6 +29,8 @@ type ProductRow = {
   name: string;
   description: string;
   price: number;
+  original_price?: number | null; // 0007 마이그레이션
+  badge_label?: string | null;    // 0007 마이그레이션
   display_order: number;
   is_active: boolean;
   created_at: string;
@@ -89,6 +92,28 @@ type SajuApiCallRow = {
   source: string | null;
 };
 
+// 0007 마이그레이션
+type LifeAnalystReportRow = {
+  id: string;
+  order_id: string;
+  status: ReportStatus;
+  stage: string | null;
+  progress_pct: number;
+  report_json: Json | null;
+  sections_part1: Json | null;
+  sections_part2: Json | null;
+  sections_part3: Json | null;
+  sections_part4: Json | null;
+  pdf_path: string | null;
+  pdf_page_count: number | null;
+  attempt_count: number;
+  error_message: string | null;
+  llm_provider: string | null;
+  llm_model: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -113,6 +138,8 @@ export type Database = {
           name: string;
           description: string;
           price: number;
+          original_price?: number | null;
+          badge_label?: string | null;
           display_order?: number;
           is_active?: boolean;
           created_at?: string;
@@ -196,6 +223,31 @@ export type Database = {
         Update: Partial<SajuApiCallRow>;
         Relationships: [];
       };
+      life_analyst_reports: {
+        Row: LifeAnalystReportRow;
+        Insert: {
+          id?: string;
+          order_id: string;
+          status?: ReportStatus;
+          stage?: string | null;
+          progress_pct?: number;
+          report_json?: Json | null;
+          sections_part1?: Json | null;
+          sections_part2?: Json | null;
+          sections_part3?: Json | null;
+          sections_part4?: Json | null;
+          pdf_path?: string | null;
+          pdf_page_count?: number | null;
+          attempt_count?: number;
+          error_message?: string | null;
+          llm_provider?: string | null;
+          llm_model?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<LifeAnalystReportRow>;
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -207,6 +259,7 @@ export type Database = {
       order_status: OrderStatus;
       calendar_kind: CalendarKind;
       gender_kind: GenderKind;
+      report_status: ReportStatus;
     };
     CompositeTypes: {
       [_ in never]: never;

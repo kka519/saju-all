@@ -56,6 +56,9 @@ import type {
   Gyeokguk,
   DaeunItem,
   SeunItem,
+  Guiin,
+  GuiinItem,
+  Hapchung,
 } from "./full-analysis-types";
 
 // ─────────────────────────────────────────────────────
@@ -109,6 +112,18 @@ export type SinsalItem = {
   category: "sibisinsals" | "cheonui" | "gwangwihakgwan" | "baekhosal";
 };
 
+/** 정규화된 단일 귀인. view.guiins 의 원소. sinsal 과 같은 shape — position 기반 pillar 매칭 재사용. */
+export type GuiinChipItem = {
+  /** 귀인 이름 (예: "천을귀인", "문창귀인") */
+  name: string;
+  /** 응답에 기록된 position 문자열 (년지/월지/일지/시지 등). */
+  position: string;
+  ji?: string;
+  description: string;
+  /** 귀인 카테고리 키 (응답 원문, 예: "cheoneul", "munchang") — UI 색상/그룹핑용. */
+  guiinType: keyof Guiin;
+};
+
 export type YongsinView = {
   /** 십신 (예: "정인") */
   십신: string;
@@ -146,6 +161,13 @@ export type MyeongsikViewModel = {
    * 응답에 sibisinsals 자체가 없으면 빈 배열.
    */
   sinsals: SinsalItem[];
+  /**
+   * 통합 귀인 배열 (16종 카테고리 flatten). 응답에 guiin 자체가 없으면 빈 배열.
+   * UI 가 sinsals 와 동일한 position 매칭 패턴으로 pillar 별 분류 가능.
+   */
+  guiins: GuiinChipItem[];
+  /** 합·충·형·해·파 (raw). fullAnalysis 없으면 undefined. */
+  hapchung: Hapchung | undefined;
   /** fullAnalysis 도달 여부 — UI 에서 풍부 모드 vs 기본 모드 분기. */
   hasFullData: boolean;
 };
@@ -332,6 +354,48 @@ function collectAllSinsals(
 }
 
 // ─────────────────────────────────────────────────────
+// 귀인 통합 (16종 카테고리 flatten)
+// ─────────────────────────────────────────────────────
+// Guiin 객체의 각 키(cheoneul/taegeuk/...)가 GuiinItem[]. 빈 배열/undefined 카테고리는 스킵.
+
+const GUIIN_KEYS: (keyof Guiin)[] = [
+  "cheoneul",
+  "taegeuk",
+  "mungok",
+  "munchang",
+  "bokseong",
+  "cheonju",
+  "cheongwan",
+  "cheonbok",
+  "hakdang",
+  "jaego",
+  "cheondeok",
+  "woldeok",
+  "amrok",
+  "geumyeo",
+  "yuha",
+  "hyeoprok",
+];
+
+function collectAllGuiin(guiinRoot: Guiin | undefined): GuiinChipItem[] {
+  if (!guiinRoot) return [];
+  const out: GuiinChipItem[] = [];
+  for (const key of GUIIN_KEYS) {
+    const items = guiinRoot[key] as GuiinItem[] | undefined;
+    for (const it of items ?? []) {
+      out.push({
+        name: it.name,
+        position: it.position,
+        ji: it.ji,
+        description: it.description,
+        guiinType: key,
+      });
+    }
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────
 // 대운/세운 정규화
 // ─────────────────────────────────────────────────────
 
@@ -466,6 +530,11 @@ export function buildMyeongsikView(
   ];
   const sinsals = collectAllSinsals(sibisinsalsRoot);
 
+  const guiinRoot = fa?.guiin as Guiin | undefined;
+  const guiins = collectAllGuiin(guiinRoot);
+
+  const hapchung = fa?.hapchung as Hapchung | undefined;
+
   const gyeokguk = fa?.gyeokguk as Gyeokguk | undefined;
   const yongsin: YongsinView | undefined = gyeokguk?.yongsin
     ? { 십신: gyeokguk.yongsin.십신, 오행: gyeokguk.yongsin.오행 }
@@ -557,6 +626,8 @@ export function buildMyeongsikView(
     daeun,
     seun,
     sinsals,
+    guiins,
+    hapchung,
     hasFullData,
   };
 }

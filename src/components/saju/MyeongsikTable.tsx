@@ -1,4 +1,9 @@
-import type { MyeongsikViewModel, SinsalItem } from "@/lib/saju/build-myeongsik-view";
+import type {
+  MyeongsikViewModel,
+  SinsalItem,
+  GuiinChipItem,
+} from "@/lib/saju/build-myeongsik-view";
+import type { HapchungItem } from "@/lib/saju/full-analysis-types";
 import type { Oheng } from "@/lib/saju/derived";
 
 // =====================================================
@@ -50,18 +55,35 @@ const PILLAR_RE: Record<"year" | "month" | "day" | "hour", RegExp> = {
   hour: /(hour|시)/i,
 };
 
-function bucketSinsals(sinsals: SinsalItem[]) {
-  const out = {
-    year: [] as SinsalItem[],
-    month: [] as SinsalItem[],
-    day: [] as SinsalItem[],
-    hour: [] as SinsalItem[],
-  };
-  for (const s of sinsals) {
+/** position 필드 기반 4기둥 버켓팅 — 신살/귀인 공통 (둘 다 {position, ji, name, description} shape). */
+function bucketByPosition<T extends { position: string }>(items: T[]) {
+  const out = { year: [] as T[], month: [] as T[], day: [] as T[], hour: [] as T[] };
+  for (const it of items) {
     for (const k of ["year", "month", "day", "hour"] as const) {
-      if (PILLAR_RE[k].test(s.position)) {
-        out[k].push(s);
+      if (PILLAR_RE[k].test(it.position)) {
+        out[k].push(it);
         break;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * 합충 — sourcePosition/targetPosition 둘 다 검사 (관계이므로 두 기둥에 걸침).
+ * 기둥별 관계 타입(합/충/형/해/파) 이름만 중복 제거해 반환 — 칩 라벨용.
+ */
+function bucketHapchungTypes(items: HapchungItem[]) {
+  const out = {
+    year: [] as string[],
+    month: [] as string[],
+    day: [] as string[],
+    hour: [] as string[],
+  };
+  for (const it of items) {
+    for (const k of ["year", "month", "day", "hour"] as const) {
+      if (PILLAR_RE[k].test(it.sourcePosition) || PILLAR_RE[k].test(it.targetPosition)) {
+        if (!out[k].includes(it.type)) out[k].push(it.type);
       }
     }
   }
@@ -79,8 +101,19 @@ export function MyeongsikTable({ view }: { view: MyeongsikViewModel }) {
   ];
   const DAY_COL = 1;
 
-  const byPillar = bucketSinsals(view.sinsals);
+  const byPillar = bucketByPosition(view.sinsals);
   const sinsalsArr = [byPillar.hour, byPillar.day, byPillar.month, byPillar.year];
+
+  const byGuiinPillar = bucketByPosition<GuiinChipItem>(view.guiins);
+  const guiinsArr = [byGuiinPillar.hour, byGuiinPillar.day, byGuiinPillar.month, byGuiinPillar.year];
+
+  const byHapchungPillar = bucketHapchungTypes(view.hapchung ?? []);
+  const hapchungArr = [
+    byHapchungPillar.hour,
+    byHapchungPillar.day,
+    byHapchungPillar.month,
+    byHapchungPillar.year,
+  ];
 
   return (
     <div>
@@ -99,6 +132,16 @@ export function MyeongsikTable({ view }: { view: MyeongsikViewModel }) {
             </tr>
           </thead>
           <tbody>
+            {/* ── row 0: 합충 (관계 요약) — 값 있는 기둥만 표시, hapchung 없으면 행 자체 생략 ── */}
+            {view.hapchung && view.hapchung.length > 0 && (
+              <tr className="border-b border-night-border/60">
+                {hapchungArr.map((types, i) => (
+                  <td key={`hc-${i}`} className="py-1.5 text-[11px] text-night-fg-muted">
+                    {types.length > 0 ? types.join(" ") : "—"}
+                  </td>
+                ))}
+              </tr>
+            )}
             {/* ── row 1: 천간 단 (카드) ── */}
             <tr>
               {pillars.map((p, i) => {
@@ -221,6 +264,29 @@ export function MyeongsikTable({ view }: { view: MyeongsikViewModel }) {
                 </td>
               ))}
             </tr>
+            {/* ── row 6: 귀인 — starlight 톤 (길신이라 신살과 색 분리) ── */}
+            {view.guiins.length > 0 && (
+              <tr className="border-t border-night-border">
+                {guiinsArr.map((list, i) => (
+                  <td key={`gi-${i}`} className="py-2 px-1 align-top">
+                    {list.length > 0 ? (
+                      <div className="flex flex-wrap justify-center gap-1">
+                        {list.map((g, j) => (
+                          <span
+                            key={`${g.name}-${j}`}
+                            className="inline-block px-1.5 py-0.5 text-[10px] rounded-full bg-night-elevated text-starlight-soft border border-starlight/40"
+                          >
+                            {g.name}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-night-fg-muted">—</span>
+                    )}
+                  </td>
+                ))}
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
