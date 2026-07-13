@@ -8,6 +8,23 @@
 import type { ReportData } from "../normalize";
 import type { ScoredPeriod } from "../types";
 
+/**
+ * 격국 종합설명(luckyloveme 원문)의 고급 관법 용어를 쉬운 말로 치환.
+ * 원문을 그대로 주면 LLM이 그 어휘(약신/통관/파극 등 티어3 금지어)를 산문에
+ * 물려받아 term-guard 게이트에 반복해서 걸림 — 입력 단에서 정화하는 것이 근본 대책.
+ */
+function sanitizeGyeokgukText(text: string): string {
+  return text
+    .replace(/약신\(藥神\)/g, "보완 처방 기운")
+    .replace(/약신/g, "보완 처방 기운")
+    .replace(/병약용신/g, "구조적 부담을 치료하는 용신")
+    .replace(/통관용신/g, "가교 역할의 용신")
+    .replace(/통관/g, "가교 역할")
+    .replace(/파극/g, "깎아먹음")
+    .replace(/전극\(戰剋\)/g, "정면충돌")
+    .replace(/병\(病\)/g, "구조적 부담");
+}
+
 function periodLine(p: ScoredPeriod): string {
   const tagLabel = { golden: "골든", 변동: "변동", caution: "주의", neutral: "" }[p.tag];
   return `${p.label} ${p.ganji}(${p.ganjiHanja}) — 지수 ${p.score} ${p.isCurrent ? "[현재]" : ""}${tagLabel ? ` [${tagLabel}]` : ""}`;
@@ -45,7 +62,7 @@ ${pillarLine("시주", view.pillars.hour)}
 신강여부: ${view.gyeokguk?.신강여부 ? "신강" : "신약"} (점수 ${view.gyeokguk?.신강점수 ?? "-"})
 용신: ${view.yongsin?.오행 ?? "-"} (${view.yongsin?.십신 ?? "-"})
 희신: ${view.gyeokguk?.희신오행 ?? "-"} / 기신: ${view.gyeokguk?.기신오행 ?? "-"} / 구신: ${view.gyeokguk?.구신오행 ?? "-"}
-격국 종합설명: ${view.gyeokguk?.종합설명 ?? "-"}
+격국 종합설명: ${sanitizeGyeokgukText(view.gyeokguk?.종합설명 ?? "-")}
 
 [신살] ${sinsalLine}
 [귀인] ${guiinLine}

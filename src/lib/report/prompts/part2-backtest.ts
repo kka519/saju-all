@@ -5,6 +5,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampArray, stripBold } from "./clamp";
+import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type ReportPart2Sections = {
@@ -40,6 +41,8 @@ const INSTRUCTION = `
   성격 다르게, 원국 자체의 기질적 특징), 뒤 4개는 "시기 검증"(backtest에서 다룬 대운 구간별
   특징 재확인, "[26~35세] ~" 형식으로 나이 구간 표기). 각 문항 45~70자. 사용자가 "맞음/아님"으로
   체크할 수 있는 구체적 서술문이어야 한다 (질문형 X, 서술문 O).
+  ⚠️ 문항에 신살·12운성 원어(역마/지살/백호 등) 절대 금지 — "이동·이사가 남들보다 많았다"처럼
+  행동·경험 서술로만 쓴다. 독자는 용어를 모른 채 체크할 수 있어야 한다.
 
 [핵심 규칙]
 - 모든 수치·간지는 데이터 블록에서 그대로 인용.
@@ -64,4 +67,19 @@ ${context}
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
   return { system: ANALYST_SYSTEM_PROMPT, user };
+}
+
+// 게이트 하한은 프롬프트 하한보다 약간 느슨하게 — 2~5자 차이 재시도 낭비 방지 (실측: 43자 문항이 45 하한에 걸림).
+const PART2_RANGES: FieldRanges = {
+  backtest: { min: 280, max: 400 },
+  // 체크 문항은 32자면 충분히 구체적 — 실측에서 35자 문항이 38 하한에 걸려 재시도 낭비.
+  checklist: { min: 32, max: 80 },
+};
+
+export function validatePart2(s: ReportPart2Sections): string[] {
+  const prose = [...s.backtest, ...s.checklist].join("\n");
+  return [
+    ...checkTermRules(prose),
+    ...checkMinLengths({ backtest: s.backtest, checklist: s.checklist }, PART2_RANGES),
+  ];
 }

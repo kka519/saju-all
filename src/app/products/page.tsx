@@ -66,16 +66,15 @@ export default async function ProductsPage() {
               <p className="mt-1.5 text-sm text-night-fg-soft leading-relaxed line-clamp-2">
                 {p.description}
               </p>
-              <p className="mt-5 flex items-baseline gap-2">
-                {p.original_price && (
-                  <span className="text-sm font-mono text-night-fg-muted line-through">
-                    {formatKRW(p.original_price)}
-                  </span>
-                )}
-                <span className="text-lg font-mono font-medium text-starlight">
-                  {formatKRW(p.price)}
-                </span>
+              {/* 취소선 종전가 표시 금지 — 공정위 부당 가격표시 소지 (ProductLineup 과 동일 정책). */}
+              <p className="mt-5 text-lg font-mono font-medium text-starlight">
+                {formatKRW(p.price)}
               </p>
+              {p.original_price && (
+                <p className="mt-1 text-xs text-night-fg-muted">
+                  정식 가격 {formatKRW(p.original_price)} 전환 예정
+                </p>
+              )}
             </Link>
           ))}
         </div>

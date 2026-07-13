@@ -9,9 +9,10 @@ export type ProductSeed = {
   name: string;
   description: string;
   price: number;
-  /** 할인 전 정가. 있으면 카드에 취소선으로 표시. */
+  /** 정식 가격(전환 예정가). 취소선 표시 금지 — 판매 이력 없는 종전가 취소선은
+   *  공정위 부당 가격표시(허위 종전거래가격) 소지. "정식 가격 N원 전환 예정" 보조 문구로만 사용. */
   original_price?: number;
-  /** 상품 카드에 노출할 배지 텍스트 (예: "BEST"). */
+  /** 상품 카드에 노출할 배지 텍스트 (예: "론칭 특가"). */
   badge_label?: string;
   display_order: number;
   is_active: boolean;
@@ -29,10 +30,11 @@ export const productsSeed: ProductSeed[] = [
   {
     slug: "life-analyst-report",
     name: "인생 애널리스트 리포트",
-    description: "증권사 애널리스트가 종목 리포트 쓰듯, 두리가 당신의 사주를 20페이지 리포트로 분석해드려요.",
+    // 두리 미등장 — LUNA LIFE RESEARCH 별도 페르소나 (IMPLEMENTATION_SPEC 원칙)
+    description: "증권사 리서치 포맷의 20페이지 인생 분석 리포트. 지난 30년을 백테스트로 검증한 뒤 앞으로의 10년을 전망합니다.",
     price: 9900,
     original_price: 39900,
-    badge_label: "BEST",
+    badge_label: "론칭 특가",
     display_order: 15,
     is_active: true,
   },
@@ -42,7 +44,8 @@ export const productsSeed: ProductSeed[] = [
     description: "내 십성과 신강신약으로 풀어보는 연애 스타일. 어떻게 사랑하는 사람인지 알려드려요.",
     price: 2640,
     display_order: 20,
-    is_active: true,
+    is_active: false, // 라인업 축소(10→5) — 비노출, 데이터 보존
+
   },
   {
     slug: "solo-fate",
@@ -50,7 +53,8 @@ export const productsSeed: ProductSeed[] = [
     description: "홍염살·도화살과 대운으로 보는 인연이 들어오는 시기. 솔로라면 꼭 봐주세요.",
     price: 3520,
     display_order: 30,
-    is_active: true,
+    is_active: false, // 라인업 축소(10→5) — 비노출, 데이터 보존
+
   },
   {
     slug: "crush",
@@ -58,7 +62,8 @@ export const productsSeed: ProductSeed[] = [
     description: "내 사주와 그 사람 사주의 합·충으로 짝사랑이 이어질 가능성을 짚어드려요.",
     price: 3520,
     display_order: 40,
-    is_active: true,
+    is_active: false, // 라인업 축소(10→5) — 비노출, 데이터 보존
+
   },
   {
     slug: "love-saju",
@@ -82,7 +87,8 @@ export const productsSeed: ProductSeed[] = [
     description: "천간지지·십성·격국까지 종합 정리. 내 삶의 큰 흐름을 한눈에 보여드려요.",
     price: 6600,
     display_order: 70,
-    is_active: true,
+    is_active: false, // 라인업 축소(10→5) — 비노출, 데이터 보존
+
   },
   {
     slug: "love-consulting",
@@ -98,6 +104,7 @@ export const productsSeed: ProductSeed[] = [
     description: "격국용신까지 포함한 평생 심층 풀이. 인생 전체를 한 권으로 정리해드려요.",
     price: 30800,
     display_order: 90,
-    is_active: true,
+    is_active: false, // 라인업 축소(10→5) — 비노출, 데이터 보존
+
   },
 ];

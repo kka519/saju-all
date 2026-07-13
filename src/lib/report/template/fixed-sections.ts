@@ -20,23 +20,30 @@ export function buildRiskDisclosure(params: {
   return `① 본 분석은 ${params.birthDateLabel} 및 출생 시각 ${params.birthTimeLabel}의 정확성을 전제로 한다. 시각이 ±30분 이상 다를 경우 시주(${params.hourPillarHanja}) 관련 해석이 달라질 수 있다. ② 명리학은 통계적 경향의 해석 체계이지 결정론이 아니다 — 동일 명식이라도 환경·선택·노력에 따라 실현 양상은 크게 다르다. ③ 운세지수는 본 리서치센터의 자체 산출 지표로 절대적 길흉의 척도가 아니다. ④ 건강 관련 언급은 의학적 진단이 아니며, 증상이 있을 경우 반드시 의료기관을 이용해야 한다. ⑤ 본 리포트의 재물 관련 서술은 특정 금융상품·부동산의 매매 권유가 아니다.`;
 }
 
-/** p.3 명리·투자 용어 번역표 — 모든 리포트 공통. */
+/**
+ * p.3 명리·투자 용어 번역표 — 모든 리포트 공통.
+ * ⚠️ system.ts [용어 3티어]의 티어2 번역어와 1:1 일치 유지 — 본문이 쓰는 번역어의 사전 역할.
+ */
 export const TERM_TRANSLATION_ROWS: readonly { term: string; translation: string; meaning: string }[] = [
   { term: "일간 (日干)", translation: "종목 (티커)", meaning: "'나' 자신. 팔자의 주인공 글자" },
   { term: "오행", translation: "섹터", meaning: "목·화·토·금·수 다섯 기운. 명식은 이들의 포트폴리오" },
-  { term: "식신·상관", translation: "생산 · 영업현금흐름", meaning: "내가 만들어내는 아웃풋 — 일, 기술, 표현, 콘텐츠" },
-  { term: "정재", translation: "고정수익 (배당)", meaning: "안정적·반복적으로 들어오는 돈. 월급, 임대료, 구독 수익" },
-  { term: "편재", translation: "기회수익 (시세차익)", meaning: "크게 돌지만 변동성이 큰 돈. 사업 소득, 투자 수익" },
-  { term: "정관·편관", translation: "신용등급 · 규제", meaning: "명예, 직함, 책임, 조직. 지나치면 압박으로 작동" },
-  { term: "정인·편인", translation: "무형자산 · R&D", meaning: "지식, 문서, 자격, 어머니 — 나를 충전시키는 기운" },
-  { term: "비견·겁재", translation: "우호 지분 · 공동 창업자", meaning: "동료, 형제, 경쟁자. 힘을 나누고 일을 나누는 존재" },
-  { term: "대운 (大運)", translation: "10년 시황 (매크로 사이클)", meaning: "10년 단위로 바뀌는 큰 환경" },
-  { term: "세운 (歲運)", translation: "연간 업황", meaning: "해마다 바뀌는 1년 단위 환경" },
-  { term: "충 (沖)", translation: "변동성 이벤트", meaning: "글자끼리의 충돌. 나쁜 것이 아니라 '움직임'의 신호" },
+  { term: "식신", translation: "생산 엔진", meaning: "꾸준히 만들어내는 아웃풋 — 일, 기술, 콘텐츠" },
+  { term: "상관", translation: "혁신 엔진", meaning: "틀을 깨는 표현·아이디어 — 기존 방식과 마찰하기도 하는 출력" },
+  { term: "정재", translation: "고정수익", meaning: "안정적·반복적으로 들어오는 돈. 월급, 임대료, 구독 수익" },
+  { term: "편재", translation: "변동수익", meaning: "크게 돌지만 변동성이 큰 돈. 사업 소득, 투자 수익" },
+  { term: "정관", translation: "신용·규율", meaning: "명예, 직함, 공적 신뢰. 조직과 규범 속의 나" },
+  { term: "편관", translation: "압박·구조조정", meaning: "외부에서 오는 책임과 부담. 견디면 권한이 되는 기운" },
+  { term: "정인", translation: "무형자산", meaning: "지식, 문서, 자격 — 나를 충전시키는 기운" },
+  { term: "편인", translation: "특수자산", meaning: "남다른 감각·전문성 — 비정형적 충전 기운" },
+  { term: "비견·겁재", translation: "자기지분", meaning: "동료, 형제, 경쟁자. 힘을 나누고 일을 나누는 존재" },
+  { term: "대운 (大運)", translation: "10년 시황", meaning: "10년 단위로 바뀌는 큰 환경 (매크로 사이클)" },
+  { term: "세운 (歲運)", translation: "연간 시황", meaning: "해마다 바뀌는 1년 단위 환경" },
+  { term: "월운 (月運)", translation: "월간 시황", meaning: "절기 기준으로 바뀌는 한 달 단위 환경" },
+  { term: "충 (沖) · 합 (合)", translation: "변동성 · 결합 이벤트", meaning: "글자끼리의 충돌/결합. 나쁜 것이 아니라 '움직임'의 신호" },
   { term: "귀인 (貴人)", translation: "전략적 제휴선", meaning: "나를 돕는 기운·사람·시기가 들어오는 창구" },
-  { term: "용신 · 희신", translation: "핵심 보완재 · 우군 섹터", meaning: "이 사주에 가장 필요한 기운과 그것을 돕는 기운 — 운에서 오면 상승 동력" },
+  { term: "용신 · 희신", translation: "핵심 성장동력 · 우군 섹터", meaning: "이 사주에 가장 필요한 기운과 그것을 돕는 기운 — 운에서 오면 상승 동력" },
   { term: "기신", translation: "과열 리스크 섹터", meaning: "이 사주에 부담을 주는 기운 — 운에서 겹치면 방어 운전 구간" },
-  { term: "신강 · 신약", translation: "자본 체력 등급", meaning: "일간(나)이 주변 기운을 감당할 체력이 강한가 약한가" },
+  { term: "신강 · 신약", translation: "자본 체력 (강/약)", meaning: "일간(나)이 주변 기운을 감당할 체력이 강한가 약한가" },
   { term: "운세지수", translation: "목표주가 (자체 지표)", meaning: "환경 우호도를 0~100pt로 지수화한 본 센터 고유 지표. 중립선 60pt" },
 ];
 

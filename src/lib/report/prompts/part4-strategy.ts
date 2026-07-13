@@ -11,6 +11,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, clampArray, stripBold } from "./clamp";
+import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type PortfolioRow = { item: string; fixed: string; opportunity: string };
@@ -172,6 +173,9 @@ const INSTRUCTION = `
 - 특정 금융상품 권유 금지. "투자의견"은 비유임을 전제.
 - 결정론적 단언 금지. 핵심 어구는 **볼드** 표기.
 - 모든 간지·연도·십신은 데이터 블록에서 그대로 인용.
+- ⚠️ 산문 필드(profitIntro/profitChannels/healthNote/riskCallout/relationIntro/
+  relationPrinciples/relationCallout/actions/closing)에는 신살 원어·공망·12운성 명칭 절대 금지 —
+  데이터 블록의 원어를 복사하지 말고 쉬운 말로만. 원어는 표 필드(riskTypes.cause 등)에서만 허용.
 `;
 
 const SCHEMA_INSTRUCTION = `
@@ -204,4 +208,55 @@ ${context}
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
   return { system: ANALYST_SYSTEM_PROMPT, user };
+}
+
+// 표 셀(portfolioRows/riskTypes/riskCalendar/helperRows)은 용어 검사 제외, 주요 본문만.
+// 게이트 하한은 프롬프트 하한보다 ~10% 느슨하게 — 몇 자 차이 재시도 낭비 방지.
+const PART4_RANGES: FieldRanges = {
+  profitIntro: { min: 200, max: 340 },
+  profitChannelBodies: { min: 72, max: 150 },
+  healthNote: { min: 218, max: 380 },
+  riskCallout: { min: 127, max: 240 },
+  relationIntro: { min: 182, max: 320 },
+  relationPrincipleBodies: { min: 72, max: 150 },
+  relationCallout: { min: 127, max: 240 },
+  actions30days: { min: 42, max: 100 },
+  actions1year: { min: 42, max: 100 },
+  actions10year: { min: 42, max: 100 },
+  closing: { min: 46, max: 100 },
+};
+
+export function validatePart4(s: ReportPart4Sections): string[] {
+  const prose = [
+    s.profitIntro,
+    ...s.profitChannels.flatMap((c) => [c.lead, c.body]),
+    s.healthNote,
+    s.riskCallout,
+    s.relationIntro,
+    ...s.relationPrinciples.flatMap((c) => [c.lead, c.body]),
+    s.relationCallout,
+    ...s.actions30days,
+    ...s.actions1year,
+    ...s.actions10year,
+    ...s.closing,
+  ].join("\n");
+  return [
+    ...checkTermRules(prose),
+    ...checkMinLengths(
+      {
+        profitIntro: s.profitIntro,
+        profitChannelBodies: s.profitChannels.map((c) => c.body),
+        healthNote: s.healthNote,
+        riskCallout: s.riskCallout,
+        relationIntro: s.relationIntro,
+        relationPrincipleBodies: s.relationPrinciples.map((c) => c.body),
+        relationCallout: s.relationCallout,
+        actions30days: s.actions30days,
+        actions1year: s.actions1year,
+        actions10year: s.actions10year,
+        closing: s.closing,
+      },
+      PART4_RANGES,
+    ),
+  ];
 }

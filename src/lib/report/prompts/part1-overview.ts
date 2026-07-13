@@ -11,6 +11,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, stripBold } from "./clamp";
+import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type DecisionStyleRow = { item: string; diagnosis: string; basis: string };
@@ -130,7 +131,7 @@ const INSTRUCTION = `
 - ilganDeep: 일간 심층 분석 2문단. 각 340~440자. 1문단=일간 글자의 본성과 이 사람의 기본 기질(투자 은유 병기), 2문단=이 명식 고유의 조합(계절/시각/오행 배치/용신 구조)이 만드는 구체적 성격.
 - decisionStyle: 의사결정 스타일 표 5행. 각 행 {item: 항목명(예: "결정 속도"), diagnosis: 진단(20~40자), basis: 명식 근거(20~50자)}.
 - pattern: 이 사람이 평생 반복해온 패턴 1문단. 300~400자. 구체적인 행동 패턴("차라리 내가 하고 만다" 식 실감나는 표현 포함)과 그것이 팔자 구조임을 짚어라.
-- strengthSummary: "**강점 요약.**"으로 시작. 강점을 십신 라벨과 함께 나열. 80~120자.
+- strengthSummary: "**강점 요약.**"으로 시작. 강점을 번역어 라벨(생산 엔진/고정수익/무형자산 등)과 함께 나열. 80~120자.
 - complementTasks: "**보완 과제.**"로 시작. 보완할 것들 나열. 50~90자.
 - valuechainComment: 십신 밸류체인(인성→일간→식상→재성→관성 순환) 해설. 240~320자. 어디서 병목이 생기는지 명시.
 - jaedaWarning: 명식의 구조적 리스크 경고. 220~300자. "**OOO 경고.**"로 시작.
@@ -140,6 +141,12 @@ const INSTRUCTION = `
 - 모든 수치·간지·오행은 데이터 블록에서 그대로 인용 — 재계산·추측 금지.
 - 각 필드는 빈 문자열 금지. 핵심 어구는 **볼드** 표기.
 - decisionStyle 의 basis 는 반드시 명식 데이터(십성/신살/격국 등)를 근거로 제시.
+- ⚠️ 산문 필드(headline/execSummary/keySentence/specComment/ilganDeep/pattern/strengthSummary/
+  complementTasks/valuechainComment/jaedaWarning)에는 신살 원어·공망·12운성 명칭 절대 금지 —
+  "곁의 동료 자리가 비어 있는 구조", "이동이 잦은 기질", "위기에서 배짱이 나오는 승부 기질"처럼
+  쉬운 말로만. 원어는 표 필드(specNotes/decisionStyle/sinsalRows)에서만 허용.
+- ⚠️ 신강/신약도 산문에서 첫 1회만 "자본 체력이 약한 구조(신약, 35점)" 식으로 병기하고,
+  이후에는 "자본 체력", "체력" 번역어로만 지칭 (원어 반복 금지).
 `;
 
 const SCHEMA_INSTRUCTION = `
@@ -174,4 +181,56 @@ ${context}
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
   return { system: ANALYST_SYSTEM_PROMPT, user };
+}
+
+// ─────────────────────────────────────────────────────
+// 검증 게이트 (term-guard) — 산문 필드 용어 규칙 + 분량 하한
+// ─────────────────────────────────────────────────────
+// 표 셀(specNotes/decisionStyle/sinsalRows)은 티어3 원어 허용이라 용어 검사 제외.
+
+// 게이트 하한은 프롬프트 하한보다 ~10% 느슨하게 — 몇 자 차이 재시도 낭비 방지.
+const PART1_RANGES: FieldRanges = {
+  headline: { min: 20, max: 40 },
+  execSummary: { min: 128, max: 200 },
+  keySentence: { min: 90, max: 140 },
+  specComment: { min: 255, max: 390 },
+  ilganDeep: { min: 310, max: 460 },
+  pattern: { min: 275, max: 420 },
+  strengthSummary: { min: 72, max: 130 },
+  complementTasks: { min: 45, max: 100 },
+  valuechainComment: { min: 218, max: 340 },
+  jaedaWarning: { min: 200, max: 320 },
+};
+
+export function validatePart1(s: ReportPart1Sections): string[] {
+  const prose = [
+    s.headline,
+    ...s.execSummary,
+    s.keySentence,
+    s.specComment,
+    ...s.ilganDeep,
+    s.pattern,
+    s.strengthSummary,
+    s.complementTasks,
+    s.valuechainComment,
+    s.jaedaWarning,
+  ].join("\n");
+  return [
+    ...checkTermRules(prose),
+    ...checkMinLengths(
+      {
+        headline: s.headline,
+        execSummary: s.execSummary,
+        keySentence: s.keySentence,
+        specComment: s.specComment,
+        ilganDeep: s.ilganDeep,
+        pattern: s.pattern,
+        strengthSummary: s.strengthSummary,
+        complementTasks: s.complementTasks,
+        valuechainComment: s.valuechainComment,
+        jaedaWarning: s.jaedaWarning,
+      },
+      PART1_RANGES,
+    ),
+  ];
 }

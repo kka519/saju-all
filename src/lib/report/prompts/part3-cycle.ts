@@ -7,6 +7,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, clampArray } from "./clamp";
+import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type SeunRow = { year: number; strategy: string };
@@ -73,8 +74,9 @@ const INSTRUCTION = `
   상승/하강 구간을 짚고 현재 위치의 의미로 끝맺어라.
 - daeunComments: [대운 전체 사이클] 목록의 각 구간에 대한 한 줄 코멘트. 배열 순서·개수를
   데이터의 대운 목록과 정확히 일치시켜라. 각 20~45자 (예: "비견 조력 — 운이 동료를 대신해준 성장기").
-- daeunDeep: [현재 대운] 심층 분석. 700~950자. 대운 두 글자(천간/지지)를 분해해 이 10년의
+- daeunDeep: [현재 대운] 심층 분석. 700~950자. 대운 두 글자를 분해해 이 10년의
   성격을 규정하고, 직전 대운과 대비(돈의 성격/체력/유리한 행동/불리한 행동)를 명확히 하라.
+  기운 흐름 변화는 쉬운 말로만 서술 (12운성 명칭 사용 금지).
 - daeunCaveats: 현재 대운의 유의 조항 2개. 각 160~240자. "**① OOO.**" 형식으로 시작.
   데이터의 [합충] 관계나 신살을 근거로.
 - seunRows: [세운] 목록의 각 연도에 대해 {year, strategy(운용 전략, 60~95자)}. 세운 배열 개수만큼.
@@ -92,6 +94,8 @@ const INSTRUCTION = `
 - 모든 지수·간지·연도는 데이터 블록 값을 그대로 사용.
 - 지수가 낮은(caution) 구간도 "하지 말라"가 아니라 "방어적으로 하라" 톤 유지.
 - 핵심 어구는 **볼드** 표기.
+- ⚠️ 산문 필드(daeunNarrative/daeunDeep/daeunCaveats/quarterIntro/goldenWindowNote/donts)에는
+  신살 원어·공망·12운성 명칭 절대 금지 — 데이터 블록의 원어를 복사하지 말고 쉬운 말로만.
 `;
 
 const SCHEMA_INSTRUCTION = `
@@ -120,4 +124,52 @@ ${context}
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
   return { system: ANALYST_SYSTEM_PROMPT, user };
+}
+
+// 표 셀(daeunComments/seunRows/monthRows/quarterRows)은 용어 검사 제외, 분량 하한은 적용.
+// 게이트 하한: 산문 대형 필드는 프롬프트 하한의 ~90%, 짧은 표 셀은 ~75% —
+// 표 셀은 몇 자 차이로 파트 전체를 재생성시키는 낭비가 커서 더 관대하게 (실측 튜닝).
+const PART3_RANGES: FieldRanges = {
+  daeunNarrative: { min: 218, max: 340 },
+  daeunComments: { min: 15, max: 50 },
+  daeunDeep: { min: 640, max: 980 },
+  daeunCaveats: { min: 145, max: 260 },
+  seunStrategies: { min: 45, max: 105 },
+  fiveYearSummary: { min: 145, max: 260 },
+  quarterIntro: { min: 164, max: 280 },
+  quarterRows: { min: 72, max: 150 },
+  goldenWindowNote: { min: 127, max: 240 },
+  donts: { min: 46, max: 105 },
+  monthRows: { min: 21, max: 52 },
+};
+
+export function validatePart3(s: ReportPart3Sections): string[] {
+  const prose = [
+    s.daeunNarrative,
+    s.daeunDeep,
+    ...s.daeunCaveats,
+    s.fiveYearSummary,
+    s.quarterIntro,
+    s.goldenWindowNote,
+    ...s.donts,
+  ].join("\n");
+  return [
+    ...checkTermRules(prose),
+    ...checkMinLengths(
+      {
+        daeunNarrative: s.daeunNarrative,
+        daeunComments: s.daeunComments,
+        daeunDeep: s.daeunDeep,
+        daeunCaveats: s.daeunCaveats,
+        seunStrategies: s.seunRows.map((r) => r.strategy),
+        fiveYearSummary: s.fiveYearSummary,
+        quarterIntro: s.quarterIntro,
+        quarterRows: s.quarterRows,
+        goldenWindowNote: s.goldenWindowNote,
+        donts: s.donts,
+        monthRows: s.monthRows,
+      },
+      PART3_RANGES,
+    ),
+  ];
 }
