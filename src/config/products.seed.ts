@@ -34,11 +34,11 @@ export const productsSeed: ProductSeed[] = [
     slug: "life-analyst-report",
     name: "인생 애널리스트 리포트",
     // 두리 미등장 — LUNA LIFE RESEARCH 별도 페르소나 (IMPLEMENTATION_SPEC 원칙)
-    description: "증권사 리서치 포맷의 20페이지 인생 분석 리포트. 지난 30년을 백테스트로 검증한 뒤 앞으로의 10년을 전망합니다.",
+    description: "증권사 리서치 포맷의 인생 분석 리포트. 지난 30년을 백테스트로 검증한 뒤 앞으로의 10년을 전망합니다.",
     price: 9900,
     original_price: 39900,
     badge_label: "론칭 특가",
-    value_line: "A4 20페이지 PDF · 30년 백테스트 검증",
+    value_line: "정식 리서치 보고서 PDF · 30년 백테스트 검증",
     display_order: 15,
     is_active: true,
   },
