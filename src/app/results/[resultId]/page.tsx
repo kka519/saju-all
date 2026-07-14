@@ -4,6 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { DaeunSeunSlider } from "@/components/saju/DaeunSeunSlider";
 import { MyeongsikTable } from "@/components/saju/MyeongsikTable";
 import { ResultBody } from "@/components/saju/ResultBody";
+import { TodayFortuneCard, type TodayFortuneSections } from "@/components/saju/TodayFortuneCard";
 import { ZiweiChart } from "@/components/saju/ZiweiChart";
 import type { Myeongsik } from "@/lib/saju/manseryeok";
 import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
@@ -23,7 +24,7 @@ export default async function ResultPage({
 
   const { data: result } = await service
     .from("saju_results")
-    .select("id, myeongsik, full_analysis, interpretation_md, llm_provider, llm_model, created_at, order_id")
+    .select("id, myeongsik, full_analysis, today_fortune, interpretation_md, llm_provider, llm_model, created_at, order_id")
     .eq("id", resultId)
     .maybeSingle();
 
@@ -118,7 +119,11 @@ export default async function ResultPage({
         )}
 
       <article>
-        <ResultBody markdown={result.interpretation_md} />
+        {product?.slug === "today-fortune" && result.today_fortune ? (
+          <TodayFortuneCard data={result.today_fortune as unknown as TodayFortuneSections} />
+        ) : (
+          <ResultBody markdown={result.interpretation_md} />
+        )}
       </article>
     </div>
   );

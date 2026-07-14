@@ -69,6 +69,7 @@ type SajuResultRow = {
   myeongsik: Json;
   astrolabe?: Json | null;       // 0005 마이그레이션 — 그동안 타입에서 누락돼 있던 것 보완
   full_analysis?: Json | null;   // 0006 마이그레이션
+  today_fortune?: Json | null;   // 0009 마이그레이션 — today-fortune 6블록 구조화 결과
   interpretation_md: string;
   llm_provider: string;
   llm_model: string;
@@ -191,6 +192,7 @@ export type Database = {
           myeongsik: Json;
           astrolabe?: Json | null;       // 0005 마이그레이션
           full_analysis?: Json | null;   // 0006 마이그레이션
+          today_fortune?: Json | null;   // 0009 마이그레이션
           interpretation_md: string;
           llm_provider: string;
           llm_model: string;

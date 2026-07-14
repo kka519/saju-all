@@ -18,6 +18,9 @@ import {
   sajuInputToZiweiInput,
   type SajuInputRow,
 } from "@/lib/saju/route-adapters";
+import { fetchDayGanji, judgeDayQuality, routeCtaSlug } from "@/lib/saju/today-ganji";
+import { computeSijinTable } from "@/lib/saju/sijin";
+import { generateTodayFortuneWithRetry } from "@/lib/saju/today-fortune-prompt";
 
 const bodySchema = z.object({
   paymentKey: z.string().min(1),
@@ -169,6 +172,75 @@ export async function POST(request: NextRequest) {
       }
     } else {
       myeongsik = await computeMyeongsik(toComputeInput(input));
+    }
+
+    // today-fortune 전용 파이프라인 — 해설가이드.md 5장(2026-07-14) "퍼널 입구 상품" 사양.
+    // 6블록 구조화 출력이라 다른 두리 상품의 자유 마크다운 경로(아래 STEP 3)와 분리한다.
+    if (product.slug === "today-fortune") {
+      const today = new Date();
+      const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+      const [todayGanji, tomorrowGanji] = await Promise.all([
+        fetchDayGanji(today),
+        fetchDayGanji(tomorrow),
+      ]);
+      const sijinTable = computeSijinTable(todayGanji.cheongan);
+      const dayQuality = judgeDayQuality(todayGanji.jiji, myeongsik.day?.jiji ?? "");
+      const targetSlug = routeCtaSlug(input.concerns);
+      const { data: targetProduct } = await service
+        .from("products")
+        .select("name")
+        .eq("slug", targetSlug)
+        .maybeSingle();
+
+      const { sections, provider, model } = await generateTodayFortuneWithRetry({
+        myeongsik,
+        manseryeokText,
+        birthDate: input.birth_date,
+        gender: input.gender,
+        todayGanji,
+        tomorrowGanji,
+        sijinTable,
+        dayQuality,
+        targetProductName: targetProduct?.name ?? "인생 애널리스트 리포트",
+      });
+
+      // interpretation_md 는 not null 컬럼이라 감사/폴백용으로 6블록을 펼친 마크다운도 채운다.
+      const flattenedMd = [
+        `## ${sections.headline}`,
+        ``,
+        `**오전** ${sections.flow.morning}`,
+        `**오후** ${sections.flow.afternoon}`,
+        `**저녁** ${sections.flow.evening}`,
+        ``,
+        ...sections.point.items.map((i) => `- ${i}`),
+        `- **피할 것**: ${sections.point.avoid}`,
+        ``,
+        sections.check,
+        ``,
+        sections.teaserCta.teaser,
+        ``,
+        `**내일** ${sections.tomorrow}`,
+      ].join("\n");
+
+      const { data: result, error: resultErr } = await service
+        .from("saju_results")
+        .insert({
+          order_id: order.id,
+          myeongsik: myeongsik as never,
+          astrolabe: null,
+          full_analysis: (fullAnalysis ?? null) as never,
+          today_fortune: { ...sections, dayQuality, targetSlug } as never,
+          interpretation_md: flattenedMd,
+          llm_provider: provider,
+          llm_model: model,
+        })
+        .select("id")
+        .single();
+
+      if (resultErr || !result) {
+        return NextResponse.json({ error: "결과 저장 실패", detail: resultErr?.message }, { status: 500 });
+      }
+      return NextResponse.json({ resultId: result.id });
     }
 
     // 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.
