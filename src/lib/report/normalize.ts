@@ -57,8 +57,19 @@ function toSeunPeriods(root: RawSeunRoot, limit = 6): ScorablePeriod[] {
 }
 
 function toWolunPeriods(root: RawWeolunRoot, limit = 12): ScorablePeriod[] {
-  const raw = [root.currentWeolun, ...(root.upcomingWeoluns ?? [])].slice(0, limit);
-  return raw.map((w, i) => ({
+  // currentWeolun 다음 달(nextWeolun)이 upcomingWeoluns 배열에는 포함되지 않는 응답이
+  // 관측됨(예: 7월→9월로 8월이 통째로 빠짐) — nextWeolun 을 명시적으로 이어붙이고,
+  // 혹시 upcomingWeoluns 가 이미 포함하고 있는 경우를 대비해 (year,month) 로 중복 제거.
+  const seen = new Set<string>();
+  const raw: typeof root.currentWeolun[] = [];
+  for (const item of [root.currentWeolun, root.nextWeolun, ...(root.upcomingWeoluns ?? [])]) {
+    if (!item) continue;
+    const key = `${item.year}-${item.month}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    raw.push(item);
+  }
+  return raw.slice(0, limit).map((w, i) => ({
     label: `${w.month}월\n${w.ganji}`,
     ganji: w.ganji,
     ganjiHanja: w.ganji_hanja,
