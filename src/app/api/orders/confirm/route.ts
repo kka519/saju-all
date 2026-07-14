@@ -18,9 +18,10 @@ import {
   sajuInputToZiweiInput,
   type SajuInputRow,
 } from "@/lib/saju/route-adapters";
-import { fetchDayGanji, analyzeDayTone, routeCtaSlug } from "@/lib/saju/today-ganji";
+import { fetchDayGanji, analyzeDayTone, findGoldenSijin, routeCtaSlug } from "@/lib/saju/today-ganji";
 import { computeSijinTable } from "@/lib/saju/sijin";
 import { generateTodayFortuneWithRetry } from "@/lib/saju/today-fortune-prompt";
+import { pickCtaTemplate, toCtaRouting } from "@/lib/saju/cta-templates";
 import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
 import type { Oheng } from "@/lib/saju/derived";
 
@@ -196,14 +197,16 @@ export async function POST(request: NextRequest) {
         gisinOheng: view.gyeokguk?.기신오행 as Oheng | undefined,
       });
 
-      const targetSlug = routeCtaSlug(input.concerns);
-      const { data: targetProduct } = await service
-        .from("products")
-        .select("name")
-        .eq("slug", targetSlug)
-        .maybeSingle();
+      const goldenSijin = findGoldenSijin(sijinTable, myeongsik, {
+        yongsinOheng: view.yongsin?.오행 as Oheng | undefined,
+        huisinOheng: view.gyeokguk?.희신오행 as Oheng | undefined,
+        gisinOheng: view.gyeokguk?.기신오행 as Oheng | undefined,
+      });
 
-      const { sections, provider, model } = await generateTodayFortuneWithRetry({
+      const targetSlug = routeCtaSlug(input.concerns);
+      const ctaTemplateId = pickCtaTemplate(toCtaRouting(targetSlug), dayTone);
+
+      const { result: sections, provider, model } = await generateTodayFortuneWithRetry({
         myeongsik,
         manseryeokText,
         birthDate: input.birth_date,
@@ -214,19 +217,25 @@ export async function POST(request: NextRequest) {
         dayTone,
         relations,
         ohengNote,
-        targetProductName: targetProduct?.name ?? "인생 애널리스트 리포트",
+        goldenSijin,
+        ctaTemplateId,
       });
 
-      // interpretation_md 는 not null 컬럼이라 감사/폴백용으로 6블록을 펼친 마크다운도 채운다.
+      // interpretation_md 는 not null 컬럼이라 감사/폴백용으로 8블록을 펼친 마크다운도 채운다.
       const flattenedMd = [
         `## ${sections.headline}`,
+        ``,
+        sections.psychSnipe,
+        ``,
+        sections.weatherReason,
         ``,
         `**오전** ${sections.flow.morning}`,
         `**오후** ${sections.flow.afternoon}`,
         `**저녁** ${sections.flow.evening}`,
+        `**골든타임** ${sections.goldenTimeLabel}`,
         ``,
-        ...sections.point.items.map((i) => `- ${i}`),
-        `- **피할 것**: ${sections.point.avoid}`,
+        `**취할 것**: ${sections.point.take}`,
+        `**피할 것**: ${sections.point.avoid}`,
         ``,
         sections.check,
         ``,
@@ -235,7 +244,7 @@ export async function POST(request: NextRequest) {
         `**내일** ${sections.tomorrow}`,
       ].join("\n");
 
-      const { data: result, error: resultErr } = await service
+      const { data: savedResult, error: resultErr } = await service
         .from("saju_results")
         .insert({
           order_id: order.id,
@@ -250,10 +259,10 @@ export async function POST(request: NextRequest) {
         .select("id")
         .single();
 
-      if (resultErr || !result) {
+      if (resultErr || !savedResult) {
         return NextResponse.json({ error: "결과 저장 실패", detail: resultErr?.message }, { status: 500 });
       }
-      return NextResponse.json({ resultId: result.id });
+      return NextResponse.json({ resultId: savedResult.id });
     }
 
     // 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.

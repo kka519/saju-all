@@ -1,33 +1,39 @@
 // =====================================================
 // src/lib/saju/today-fortune-prompt.ts
 // =====================================================
-// today-fortune 전용 프롬프트 — 해설가이드.md 5장(2026-07-14 갱신) 사양:
-// "퍼널 입구 상품 — 마케팅 문법 적용". 다른 두리 상품(love-saju 등)의 자유분방한
-// 5키 JSON과 달리, 6블록 고정 구조 + 500~700자 + 검증 가능 문장/CTA 개수 게이트를 둔다.
+// today-fortune 전용 프롬프트 — 해설가이드.md 5장(2026-07-14 2차 갱신) 사양:
+// "퍼널 입구 상품 — 880원 과잉전달". 1,100~1,400자 / 7블록. 시진·일진·톤·
+// 골든타임·CTA 템플릿은 전부 코드가 계산해 데이터로 주입한다 — LLM은 재계산
+// 금지, 해설만 한다("계산은 코드가, 해석만 AI가" 원칙).
 //
-// 시진/오늘·내일 일진/톤(day_tone)은 전부 코드가 계산해 데이터로 주입한다 —
-// LLM은 재계산 금지, 해설만 한다("계산은 코드가, 해석만 AI가" 원칙).
-//
-// 진실 원천 통일: 톤 판정(analyzeDayTone, today-ganji.ts)과 본문 서술이 어긋나던
-// 문제(예: "맑음" 판정인데 headline은 부정적) 재발 방지 — LLM에게 day_tone 필드로
-// 판정을 그대로 되돌려 쓰게 하고, 게이트가 이 값이 주입된 판정과 일치하는지 +
-// teaserCta가 톤에 맞는 프레임 키워드를 썼는지까지 검증한다.
+// CTA는 자유 작성이 아니라 cta-templates.ts 의 고정 뱅크에서 코드가 조립한다
+// (R2만 LLM이 짧은 연결문장 1개를 쓴다) — "템플릿 외 문장 추가"가 스키마상
+// 애초에 불가능하도록 설계했다.
 
 import type { Myeongsik } from "./manseryeok";
 import { SYSTEM_BASE } from "./prompt";
 import { generateInterpretation } from "./llm";
 import { extractJsonObject } from "../report/prompts/extract-json";
+import { checkMinLengths, FORBIDDEN_TERMS, TRANSLATE_FIRST_TERMS, type FieldRanges } from "../report/prompts/term-guard";
 import type { SijinEntry } from "./sijin";
-import type { DayGanji, DayTone, DayToneRelation } from "./today-ganji";
+import type { DayGanji, DayTone, DayToneRelation, GoldenSijinResult } from "./today-ganji";
+import { CTA_TEMPLATES, assembleCta, type CtaTemplateId } from "./cta-templates";
 
 export type TodayFortuneSections = {
   dayTone: DayTone;
   headline: string;
+  psychSnipe: string;
+  weatherReason: string;
   flow: { morning: string; afternoon: string; evening: string };
-  point: { items: string[]; avoid: string };
+  goldenTimeLabel: string;
+  point: { take: string; avoid: string };
   check: string;
-  teaserCta: { teaser: string; ctaLabel: string };
+  todaySummarySentence?: string;
   tomorrow: string;
+};
+
+export type TodayFortuneResult = TodayFortuneSections & {
+  teaserCta: { teaser: string; ctaLabel: string };
 };
 
 const DAY_TONE_VALUES: readonly DayTone[] = ["good", "mixed", "caution"];
@@ -42,79 +48,146 @@ export function parseTodayFortuneSections(obj: unknown): TodayFortuneSections | 
 
   if (!DAY_TONE_VALUES.includes(o.dayTone as DayTone)) return null;
   if (!isNonEmptyString(o.headline)) return null;
+  if (!isNonEmptyString(o.psychSnipe)) return null;
+  if (!isNonEmptyString(o.weatherReason)) return null;
   const flow = o.flow as Record<string, unknown> | undefined;
   if (!flow || !isNonEmptyString(flow.morning) || !isNonEmptyString(flow.afternoon) || !isNonEmptyString(flow.evening)) {
     return null;
   }
+  if (!isNonEmptyString(o.goldenTimeLabel)) return null;
   const point = o.point as Record<string, unknown> | undefined;
-  if (
-    !point ||
-    !Array.isArray(point.items) ||
-    point.items.length < 1 ||
-    !point.items.every(isNonEmptyString) ||
-    !isNonEmptyString(point.avoid)
-  ) {
-    return null;
-  }
+  if (!point || !isNonEmptyString(point.take) || !isNonEmptyString(point.avoid)) return null;
   if (!isNonEmptyString(o.check)) return null;
-  const teaserCta = o.teaserCta as Record<string, unknown> | undefined;
-  if (!teaserCta || !isNonEmptyString(teaserCta.teaser) || !isNonEmptyString(teaserCta.ctaLabel)) return null;
+  if (o.todaySummarySentence !== undefined && typeof o.todaySummarySentence !== "string") return null;
   if (!isNonEmptyString(o.tomorrow)) return null;
 
   return {
     dayTone: o.dayTone as DayTone,
     headline: o.headline as string,
+    psychSnipe: o.psychSnipe as string,
+    weatherReason: o.weatherReason as string,
     flow: { morning: flow.morning as string, afternoon: flow.afternoon as string, evening: flow.evening as string },
-    point: { items: point.items as string[], avoid: point.avoid as string },
+    goldenTimeLabel: o.goldenTimeLabel as string,
+    point: { take: point.take as string, avoid: point.avoid as string },
     check: o.check as string,
-    teaserCta: { teaser: teaserCta.teaser as string, ctaLabel: teaserCta.ctaLabel as string },
+    todaySummarySentence: o.todaySummarySentence as string | undefined,
     tomorrow: o.tomorrow as string,
   };
 }
 
-// 톤별 CTA 프레임 키워드 — teaserCta.teaser 가 최소 1개는 포함해야 "프레임을 지켰다"로 인정.
-const FRAME_KEYWORDS: Record<DayTone, RegExp> = {
-  good: /길게\s*타는|오래\s*타는|흐름을\s*타/,
-  caution: /언제\s*끝나는지|구간이\s*끝나|끝나는지\s*아는/,
-  mixed: /무엇을\s*취하고|취하고\s*무엇을\s*피할지|취할\s*것.*피할\s*것|골라\s*가져가/,
-};
+// ── 헤드라인 "명리 용어 0개" 게이트 — term-guard.ts 목록 재사용 ──
+// report의 "티어 허용치" 방식과 달리 today-fortune 헤드라인은 한 개도 허용하지
+// 않는다(해설가이드: "명리 용어 0개, 생활 장면 언어"). 단발 한글자 급 표현(충/합
+// 등)은 일상어와 충돌 위험이 커서 제외하고, 식별력 있는 다자 용어만 검사한다.
+const BASE_JARGON_TERMS = [
+  "사주", "명식", "일간", "오행", "대운", "세운", "월운", "십성",
+  "합충", "신강", "신약", "용신", "희신", "기신", "격국", "공망", "지장간",
+];
+const HEADLINE_JARGON_TERMS = Array.from(new Set([...FORBIDDEN_TERMS, ...TRANSLATE_FIRST_TERMS, ...BASE_JARGON_TERMS]));
 
-// teaserCta가 날씨/톤 얘기에서 벗어나 신살을 나열하는 식으로 새는 걸 감지하는 가벼운 휴리스틱.
-const SINSAL_LEAK_RE = /백호살|화개살|원진|도화살|역마살|홍염살|귀문살|천을귀인|금여|암록|반안살|장성살|겁살|망신살|천의성/g;
+function findHeadlineJargon(headline: string): string[] {
+  return HEADLINE_JARGON_TERMS.filter((t) => headline.includes(t));
+}
 
-// 해설가이드 4장 "검증 가능 문장 2개 미만 → 재생성" / "CTA 2개 이상 → 재생성" 게이트.
 const CTA_TRIGGER_RE = /보러\s*가기|확인하기|지금\s*확인|자세히\s*보기|알아보기/;
 
-export function validateTodayFortune(s: TodayFortuneSections, expectedTone: DayTone): string[] {
+// ── psychSnipe 게이트 2종 ──
+// ① few-shot 원문 복사 방지: 30자 이상 연속 부분 문자열이 few-shot 심리 저격
+//   원문에 그대로 있으면 위반(짧은 슬라이딩 윈도우 — 문장 길이가 짧아 비용 무시 가능).
+const FEW_SHOT_PSYCH_SNIPE_REFERENCE =
+  "안녕, 두리예요. 시작하기 전에 하나만 물을게요 — 그대, 부탁을 받으면 거절보다 \"내가 하고 말지\"가 먼저 나오는 편이죠. 일도 사람도 혼자 다 감당하는 쪽이고요. 명식에 그대 편을 들어줄 동료 별이 하나도 없이, 해야 할 일과 챙겨야 할 결과의 별만 가득해서 그래요. 오늘은 그 버릇이 유독 세게 나오는 날입니다.";
+
+function findCopiedSubstring(generated: string, reference: string, minLen = 30): string | null {
+  if (generated.length < minLen) return null;
+  for (let i = 0; i <= generated.length - minLen; i++) {
+    const chunk = generated.slice(i, i + minLen);
+    if (reference.includes(chunk)) return chunk;
+  }
+  return null;
+}
+
+// ② 현재형 습관 진단 트리거 — 하나도 없으면 "미래형만 있고 현재형 진단 없음" 위반.
+const PRESENT_TENSE_TRAIT_RE = /편이죠|편이에요|경향이 있어요|스타일이에요|타입이에요|그런 사람이에요|잘\s*하죠|많이\s*하죠/;
+
+const PART_RANGES: FieldRanges = {
+  headline: { min: 40, max: 70 },
+  psychSnipe: { min: 90, max: 260 },
+  weatherReason: { min: 80, max: 140 },
+  flowMorning: { min: 90, max: 180 },
+  flowAfternoon: { min: 90, max: 180 },
+  flowEvening: { min: 90, max: 180 },
+  pointTake: { min: 150, max: 320 },
+  pointAvoid: { min: 150, max: 320 },
+  check: { min: 30, max: 70 },
+  tomorrow: { min: 60, max: 120 },
+};
+
+export function validateTodayFortune(
+  s: TodayFortuneSections,
+  expectedTone: DayTone,
+  ctaTemplateId: CtaTemplateId,
+  expectedGoldenTimeLabel: string,
+): string[] {
   const issues: string[] = [];
 
   if (s.dayTone !== expectedTone) {
-    issues.push(`dayTone이 "${s.dayTone}"인데 코드가 계산한 판정은 "${expectedTone}"이다 — dayTone 필드를 "${expectedTone}"로 정확히 맞추고, 본문 톤 전체(headline/point/teaserCta)를 이 판정에 맞게 다시 써라`);
+    issues.push(`dayTone이 "${s.dayTone}"인데 코드가 계산한 판정은 "${expectedTone}"이다 — dayTone 필드를 "${expectedTone}"로 정확히 맞추고, 본문 톤 전체를 이 판정에 맞게 다시 써라`);
   }
 
-  if (!FRAME_KEYWORDS[expectedTone].test(s.teaserCta.teaser)) {
-    issues.push(`teaserCta가 "${expectedTone}" 프레임 키워드를 포함하지 않는다 — 지정된 프레임 문구를 teaser에 명확히 반영하라`);
+  const jargonHits = findHeadlineJargon(s.headline);
+  if (jargonHits.length > 0) {
+    issues.push(`headline에 명리 용어가 등장했다(${jargonHits.join(",")}) — 헤드라인은 명리 용어 0개, 생활 장면 언어로만 써라`);
   }
 
-  const sinsalMatches = s.teaserCta.teaser.match(SINSAL_LEAK_RE);
-  if (sinsalMatches && sinsalMatches.length >= 2) {
-    issues.push(`teaserCta가 신살 나열(${sinsalMatches.join(",")})로 주제를 이탈했다 — 톤 프레임 본연의 주제로만 써라`);
+  const copied = findCopiedSubstring(s.psychSnipe, FEW_SHOT_PSYCH_SNIPE_REFERENCE);
+  if (copied) {
+    issues.push(`psychSnipe가 few-shot 예시와 30자 이상 그대로 겹친다("${copied}") — few-shot은 문체·구조 참고용일 뿐, 이 명식 고유의 성격 진단을 새로 도출해라(베끼지 마라)`);
+  }
+  if (!PRESENT_TENSE_TRAIT_RE.test(s.psychSnipe)) {
+    issues.push(`psychSnipe에 현재형 습관 진단("~하는 편이죠" 류)이 없다 — 미래 예측이 아니라 원래 그런 사람이라는 현재형 문장을 반드시 포함해라`);
   }
 
-  const verifiableCount = s.point.items.length + (s.point.avoid ? 1 : 0);
-  if (verifiableCount < 2) {
-    issues.push(`검증 가능 문장이 ${verifiableCount}개뿐(2개 이상 필요) — point.items/avoid를 조건부+행동 단위 문장으로 보강하라`);
+  if (!s.goldenTimeLabel.includes(expectedGoldenTimeLabel)) {
+    issues.push(`goldenTimeLabel이 코드가 계산한 골든타임("${expectedGoldenTimeLabel}")을 그대로 인용하지 않았다 — 이 문구를 그대로 포함시켜라`);
   }
 
-  const outsideCta = [s.headline, s.flow.morning, s.flow.afternoon, s.flow.evening, ...s.point.items, s.point.avoid, s.check, s.tomorrow];
-  const ctaLeaks = outsideCta.filter((t) => CTA_TRIGGER_RE.test(t));
-  if (ctaLeaks.length > 0) {
-    issues.push(`teaserCta 이외의 필드에 CTA성 문구가 등장(${ctaLeaks.length}건) — CTA는 teaserCta 하나로만 제한하라`);
+  const needsSummary = CTA_TEMPLATES[ctaTemplateId].needsSummary;
+  if (needsSummary) {
+    if (!isNonEmptyString(s.todaySummarySentence)) {
+      issues.push(`todaySummarySentence가 비어 있다 — 오늘의 핵심 문장을 1문장(60자 이내)으로 요약해서 채워라`);
+    } else {
+      if (s.todaySummarySentence.length > 60) {
+        issues.push(`todaySummarySentence가 ${s.todaySummarySentence.length}자로 60자를 넘는다 — 짧은 한 문장으로 줄여라`);
+      }
+      if (CTA_TRIGGER_RE.test(s.todaySummarySentence)) {
+        issues.push(`todaySummarySentence에 CTA성 문구가 들어갔다 — 오늘 상황을 요약하는 문장만 쓰고 CTA는 넣지 마라`);
+      }
+    }
   }
 
-  const totalChars = [s.headline, s.flow.morning, s.flow.afternoon, s.flow.evening, ...s.point.items, s.point.avoid, s.check, s.teaserCta.teaser, s.tomorrow].join("").length;
-  if (totalChars < 400 || totalChars > 850) {
-    issues.push(`전체 분량 ${totalChars}자 (목표 500~700자, 허용 400~850자) — 목표 범위에 맞게 다시 작성하라`);
+  const lengthIssues = checkMinLengths(
+    {
+      headline: s.headline,
+      psychSnipe: s.psychSnipe,
+      weatherReason: s.weatherReason,
+      flowMorning: s.flow.morning,
+      flowAfternoon: s.flow.afternoon,
+      flowEvening: s.flow.evening,
+      pointTake: s.point.take,
+      pointAvoid: s.point.avoid,
+      check: s.check,
+      tomorrow: s.tomorrow,
+    },
+    PART_RANGES,
+  );
+  issues.push(...lengthIssues);
+
+  const totalChars = [
+    s.headline, s.psychSnipe, s.weatherReason, s.flow.morning, s.flow.afternoon, s.flow.evening,
+    s.point.take, s.point.avoid, s.check, s.todaySummarySentence ?? "", s.tomorrow,
+  ].join("").length;
+  if (totalChars < 1000 || totalChars > 1550) {
+    issues.push(`전체 분량 ${totalChars}자 (목표 1,100~1,400자, 허용 1,000~1,550자) — 목표 범위에 맞게 다시 작성하라`);
   }
 
   return issues;
@@ -131,10 +204,32 @@ function formatRelations(relations: DayToneRelation[]): string {
 
 const TONE_LABEL: Record<DayTone, string> = { good: "좋은 날", mixed: "혼조세", caution: "주의가 필요한 날" };
 const FRAME_TEXT: Record<DayTone, string> = {
-  good: `teaserCta 는 "이 흐름을 길게 타는 법" 프레임으로 쓴다.`,
-  caution: `teaserCta 는 "이 구간이 언제 끝나는지 아는 게 무기" 프레임으로 쓴다.`,
-  mixed: `teaserCta 는 "무엇을 취하고 무엇을 피할지" 프레임으로 쓴다 — 오늘은 좋은 관계와 주의할 관계가 동시에 있는 혼조세이니, 유불리를 나누는 톤으로.`,
+  good: `본문 전체를 "이 흐름을 길게 타면 좋다"는 낙관적 톤으로 쓴다.`,
+  caution: `본문 전체를 "이 구간을 조심해서 지나가야 한다"는 경계 톤으로 쓴다.`,
+  mixed: `본문 전체를 "무엇을 취하고 무엇을 피할지" 유불리를 나누는 톤으로 쓴다 — 좋은 관계와
+주의할 관계가 동시에 있는 혼조세임을 균형 있게 담아라.`,
 };
+
+// 검수 완료본(사장님 확정, 2026-07-14) — 임의 수정 금지.
+const FEW_SHOT_EXAMPLE: string | null = `헤드라인: "오늘, 남 챙기다 내 몫 놓치기 쉬운 날이에요."
+
+심리 저격: 안녕, 두리예요. 시작하기 전에 하나만 물을게요 — 그대, 부탁을 받으면 거절보다 "내가 하고 말지"가 먼저 나오는 편이죠. 일도 사람도 혼자 다 감당하는 쪽이고요. 명식에 그대 편을 들어줄 동료 별이 하나도 없이, 해야 할 일과 챙겨야 할 결과의 별만 가득해서 그래요. 오늘은 그 버릇이 유독 세게 나오는 날입니다.
+
+오늘의 날씨: ⛅ 구름 — 오늘의 기운(기축)이 그대의 중심과는 손을 잡는데, 발밑과는 부딪혀요. 위는 화해, 아래는 균열. 겉으로는 순조롭게 흘러가는데 디테일에서 금이 가는 날이라는 뜻이에요.
+
+오늘의 흐름 — 오전(9~11시): 말이 잘 통하는 시간. 대신 부탁과 제안도 이 시간에 들어와요. 듣는 건 오전에, 수락은 오후에 하세요. / 골든타임 오후 5~7시: 미뤄둔 정산, 문서 확인, 돈 이야기는 여기로 몰아넣으세요. 오늘 중 가장 단단한 두 시간이에요. / 밤: 마음이 풀어지면서 말도 풀어져요. 편한 자리일수록 한 마디를 아끼세요.
+
+오늘의 포인트 — 💰 오늘 "내가 살게", "내가 할게"가 입에서 몇 번 나오는지 세어보세요. 세 번을 넘으면 그게 오늘의 누수입니다. 10만원 넘는 결제·보증·빌려주기는 내일로. / 💬 서운한 일이 생겨도 오늘은 문자로 길게 쓰지 마세요. 오늘의 균열 기운은 문장을 실제 마음보다 차갑게 만들어요. 내일 얼굴 보고 말하면 절반은 오해였다는 걸 알게 됩니다.
+
+체감 체크: 오늘 밤, 딱 두 가지만 되짚어 보세요 — "내가 할게"가 몇 번이었는지, 그리고 5~7시에 무슨 일이 있었는지.
+
+CTA(L2 템플릿): 오늘은 하루의 날씨만 봤어요. 날씨 말고 기후가 궁금하지 않으세요? 그대가 어떤 사람 앞에서 흔들리고, 어떤 사람 옆에서 단단해지는지는 명식 전체를 펼쳐야 보여요. [내 마음의 기후 보기]
+
+내일 예고+마무리: 내일(경인)은 반대로 일이 그대를 시험하는 날이에요. 오늘 아껴둔 힘이 내일 쓰입니다. 그대의 별이 오늘도 잘 빛나길, 두리가 지켜볼게요. 🐾`;
+
+// few-shot 뒤에 반드시 붙이는 복사 방지 경고 문구(사용자 지정 원문).
+const FEW_SHOT_WARNING =
+  "위 샘플은 문체·밀도·구조의 기준일 뿐이다. 간지(기축·경인), 성격 진단(혼자 감당하는 유형), 행동 팁(내가 할게 카운트)은 이 명식 전용 — 절대 복사하지 말고, 입력된 명식과 오늘 일진에서 새로 도출하라.";
 
 export function buildTodayFortunePrompt(input: {
   myeongsik: Myeongsik;
@@ -147,7 +242,8 @@ export function buildTodayFortunePrompt(input: {
   dayTone: DayTone;
   relations: DayToneRelation[];
   ohengNote: string;
-  targetProductName: string;
+  goldenSijin: GoldenSijinResult;
+  ctaTemplateId: CtaTemplateId;
 }): { system: string; user: string } {
   const pillar = (p: { cheongan: string; jiji: string } | null) => (p ? `${p.cheongan}${p.jiji}` : "(시 미상)");
   const sajuSection = input.manseryeokText
@@ -159,6 +255,16 @@ export function buildTodayFortunePrompt(input: {
         `- 일주: ${pillar(input.myeongsik.day)}`,
         `- 시주: ${pillar(input.myeongsik.hour)}`,
       ].join("\n");
+
+  const needsSummary = CTA_TEMPLATES[input.ctaTemplateId].needsSummary;
+  const ctaFieldInstruction = needsSummary
+    ? `- todaySummarySentence: 오늘의 핵심(headline 취지)을 1문장, 60자 이내로 요약. CTA 문구·버튼
+  안내는 절대 넣지 마라 — 이 문장은 코드가 CTA 템플릿의 "{summary}" 자리에 그대로 꽂는다.`
+    : `- todaySummarySentence: 이번 판정에서는 사용하지 않는다. 필드 자체를 생략해도 된다.`;
+
+  const fewShotBlock = FEW_SHOT_EXAMPLE
+    ? `\n[모범 출력 예시 — 이 밀도와 구조를 그대로 따라라]\n${FEW_SHOT_EXAMPLE}\n\n⚠️ ${FEW_SHOT_WARNING}\n`
+    : "";
 
   const user = `[현재 시점]
 오늘은 ${input.birthDate} 기준이 아니라 구매 시점(오늘)이다.
@@ -174,48 +280,65 @@ ${formatSijinTable(input.sijinTable)}
 ${formatRelations(input.relations)}
 ${input.ohengNote}
 
-[톤 판정 — 코드가 위 관계·오행을 종합해 이미 결정했다. 재판정하지 마라]
+[톤 판정 — 코드가 이미 결정했다. 재판정 금지]
 dayTone: "${input.dayTone}" (${TONE_LABEL[input.dayTone]})
-headline·point·teaserCta 전체의 톤(긍정/경계/혼조)을 반드시 이 판정과 일치시켜라 —
-예를 들어 "good"인데 headline이 부정적이거나, "caution"인데 낙관적으로 쓰면 안 된다.
 ${FRAME_TEXT[input.dayTone]}
 
-[CTA 타겟 상품] ${input.targetProductName} — teaserCta.ctaLabel 은 이 상품으로 이어지는 문구로 쓴다
-(URL/링크는 절대 쓰지 마라 — 코드가 별도로 연결한다).
+[골든타임 — 코드가 계산한 확정값. 그대로 인용하라]
+${input.goldenSijin.entry.label}(${input.goldenSijin.entry.cheongan}${input.goldenSijin.entry.jiji}) = ${input.goldenSijin.timeRangeLabel}
+④ flow 서술 안에 "${input.goldenSijin.timeRangeLabel}" 문구를 반드시 포함해 골든타임을 특정하라.
+${fewShotBlock}
+[이번 상품 — 오늘의 운세, 퍼널 입구 상품. "880원인데 이렇게까지?" 를 목표로 과잉전달한다]
+총 1,100~1,400자, 아래 필드를 채운 JSON으로 작성한다.
 
-[이번 상품 — 오늘의 운세, 퍼널 입구 상품. 마케팅 문법 적용]
-총 500~700자, 아래 7필드 JSON으로 작성한다.
+[밀도 규칙 — 전 블록 공통, 반드시 지켜라]
+모든 블록은 명식 근거(간지·십신·합충) 1개 + 생활 장면(회의·결제·연락·약속 등) 1개를 반드시
+포함한다. 근거 없는 덕담 문장("좋은 하루 되세요" 류) 금지 — 왜 그런지(근거) + 어디서
+드러나는지(생활 장면)가 항상 붙어야 한다.
 
-- dayTone: 위에서 코드가 준 값("${input.dayTone}")을 그대로 복사해 넣는다 — 절대 다른 값 쓰지 마라.
-- headline: 오늘의 뾰족한 예측 1문장. **첫 문장이 훅** — 인사말은 그 다음(headline 자체엔 인사 넣지 마라).
-  "오늘은 변화가 많을 수 있어요" 같은 바넘 문장 금지 — 위 [오늘 일진과 원국의 관계] 를 구체적 근거로
-  짚어 특정하게 써라. mixed 판정이면 좋은 관계와 주의할 관계를 모두 한 문장 안에 균형 있게 담아라.
-- flow: 오전/오후/저녁 각 1문장. 위 [오늘 12시진] 표에서 해당 시간대 시진 간지를 근거로 인용하며 서술
-  (오전=인시~사시 대역, 오후=오시~신시 대역, 저녁=유시~해시 대역 중 대표 시진 선택).
-- point: 오늘의 포인트 1~2개(items) + "피할 것" 1개(avoid). 반드시 저녁에 스스로 검증 가능한 조건부
-  문장("~하기 쉬운 날") 형태로 쓰고, avoid는 구체적 행동 단위로 쓴다(예: "10만원 넘는 결제는 내일로").
-  mixed 판정이면 items 중 하나는 "취할 것"(좋은 관계 근거), avoid는 "피할 것"(주의할 관계 근거)으로 대비시켜라.
-- check: "오늘 저녁, 몇 개가 맞았는지 세어보세요" 같은 체감 체크 유도 문장 1개.
-- teaserCta: {teaser, ctaLabel}. teaser는 사이클 티저(오픈 루프 — 다 풀어주지 않고 궁금증을 남긴다) +
-  위에서 지정한 프레임 문구를 반드시 포함한 1~2문장. 신살 이름을 나열하지 말고 톤 프레임 주제에 집중하라.
-  ctaLabel은 버튼에 들어갈 짧은 문구(예: "연애 사주 더 보기").
-- tomorrow: 내일 예고 1문장. 위 [내일 일진]을 근거로.
+- dayTone: 위에서 코드가 준 값("${input.dayTone}")을 그대로 복사한다.
+- headline: ① 오늘의 뾰족한 예측 1문장. **첫 문장이 훅, 인사말은 그 다음**(headline 자체엔
+  인사 넣지 마라). ⚠️ 명리 용어를 단 하나도 쓰지 마라(사주/명식/일간/오행/대운/합충/신강신약
+  등 전부 금지) — "오늘은 회의에서 그대 말이 평소보다 힘을 받는 날이에요" 처럼 순수 생활
+  장면 언어로만. 바넘 문장 금지 — 위 [오늘 일진과 원국의 관계]를 근거로 삼되 용어 없이 풀어써라.
+- psychSnipe: ② 심리 저격. 인사("안녕, 두리예요")로 시작해 이 사람의 원국 실제 구조(십성
+  분포·합충)에서 도출한 현재형 성격 진단 1~2문장("~하는 편이죠/~인 편이에요" 식 — 미래 예측이
+  아니라 원래 그런 사람이라는 "아하 포인트"). 마지막 문장은 반드시 "오늘은 그 버릇이 유독
+  ~한 날" 형태로 오늘과 연결해라. [모범 출력 예시]가 있다면 문체·구조만 참고하고 절대 베끼지 마라
+  — 이 사람의 실제 명식 데이터에서 새로 도출한 진단이어야 한다.
+- weatherReason: ③ 오늘의 날씨 판정 근거를 생활 언어로 1~2문장. "왜 오늘이 이런 날인지"를
+  명식 근거를 녹여 설명하되 여기서도 원어 나열보다 쉬운 말 위주로.
+- flow: ④ 오전/오후/저녁 각 2문장(총 4문장 이상). 위 [오늘 12시진] 표에서 해당 시간대
+  시진 간지를 근거로 인용하며 서술(오전=인시~사시, 오후=오시~신시, 저녁=유시~해시 대역
+  중 대표 시진 선택). 위에서 지정한 골든타임 문구는 해당 시간대 서술 안에 자연스럽게 포함.
+- goldenTimeLabel: 위 [골든타임]에서 코드가 준 시간대 문구를 그대로 복사한다.
+- point: ⑤ 오늘의 포인트 2영역. take(취할 것, 3~4문장)와 avoid(피할 것, 3~4문장) 각각
+  구체적 행동 단위로 쓴다(예: "10만원 넘는 결제는 내일로 미루세요"). 저녁에 스스로 검증
+  가능한 조건부 문장("~하기 쉬운 날")을 반드시 섞어라.
+- check: ⑥ "오늘 저녁, 몇 개가 맞았는지 세어보세요" 같은 체감 체크 유도 문장 1개.
+${ctaFieldInstruction} (⑦ CTA)
+- tomorrow: ⑧ 내일 예고 1문장(위 [내일 일진] 근거) + 따뜻한 마무리 위로 1문장.
 
 [핵심 규칙]
 - 흉한 신호도 뭉개지 말고 뾰족하게 짚되(해설가이드 0장), 반드시 행동 처방과 함께 제시한다.
 - 공포 마케팅(해설가이드 3장) 금지 — "삼재라서 큰일" 식 불안 조장 금지.
-- CTA는 teaserCta 필드 하나에만 — 다른 블록에 "보러 가기"류 문구를 넣지 마라.
-- 모든 간지·시진·톤 판정은 위 데이터 블록 값을 그대로 인용 — 재계산·추측·재판정 금지.
+- 고객에 대해 아무것도 모른다는 전제 — "그대에겐 ~가 있어요" 같은 아는 척 문장 금지.
+- 모든 간지·시진·톤·골든타임은 위 데이터 블록 값을 그대로 인용 — 재계산·추측·재판정 금지.
+- CTA 문구는 절대 쓰지 마라 — CTA는 코드가 별도 템플릿으로 조립한다(위 todaySummarySentence
+  지시를 따르는 경우 제외).
 
 [출력 형식 — 매우 중요]
 반드시 아래 JSON 객체 하나로만 응답한다. 코드블록 마커 없이 { 로 시작해 } 로 끝나는 순수 JSON:
 {
   "dayTone": "${input.dayTone}",
   "headline": "...",
+  "psychSnipe": "...",
+  "weatherReason": "...",
   "flow": {"morning":"...","afternoon":"...","evening":"..."},
-  "point": {"items":["...", "..."],"avoid":"..."},
+  "goldenTimeLabel": "${input.goldenSijin.timeRangeLabel}",
+  "point": {"take":"...","avoid":"..."},
   "check": "...",
-  "teaserCta": {"teaser":"...","ctaLabel":"..."},
+  ${needsSummary ? `"todaySummarySentence": "...",` : ""}
   "tomorrow": "..."
 }
 JSON 외 다른 텍스트 절대 추가 금지.`;
@@ -223,12 +346,12 @@ JSON 외 다른 텍스트 절대 추가 금지.`;
   return { system: SYSTEM_BASE, user };
 }
 
-// 3 → 4: 톤 일치/프레임 게이트 추가로 위반 종류가 늘어 재시도 여유를 더 둠.
-const MAX_ATTEMPTS = 4;
+// 게이트 종류 증가(용어 제로/골든타임/CTA요약 등)에 맞춰 여유를 더 둠.
+const MAX_ATTEMPTS = 5;
 
 export async function generateTodayFortuneWithRetry(
   input: Parameters<typeof buildTodayFortunePrompt>[0],
-): Promise<{ sections: TodayFortuneSections; provider: string; model: string }> {
+): Promise<{ result: TodayFortuneResult; provider: string; model: string }> {
   let prevIssues: string[] = [];
   let lastText = "";
   let provider = "";
@@ -242,7 +365,7 @@ export async function generateTodayFortuneWithRetry(
         : user;
     let llm: Awaited<ReturnType<typeof generateInterpretation>>;
     try {
-      llm = await generateInterpretation({ system, user: userFinal, maxTokens: 4096 });
+      llm = await generateInterpretation({ system, user: userFinal, maxTokens: 8192 });
     } catch (err) {
       // 네트워크/일시적 API 오류(503 overloaded 등) — JSON 파싱 실패와 동일하게 재시도 대상.
       console.warn(`[today-fortune retry] attempt ${attempt + 1} API 호출 실패: ${err instanceof Error ? err.message : String(err)}`);
@@ -256,11 +379,14 @@ export async function generateTodayFortuneWithRetry(
     const parsed = obj ? parseTodayFortuneSections(obj) : null;
     if (!parsed) {
       console.warn(`[today-fortune retry] attempt ${attempt + 1} JSON 파싱/스키마 실패. obj=${obj ? "파싱은 됐으나 스키마 불일치" : "파싱 실패"}. raw(500자): ${lastText.slice(0, 500)}`);
-      prevIssues = ["JSON 스키마 불일치 — 지정된 7필드(dayTone 포함) 구성을 정확히 지켜라"];
+      prevIssues = ["JSON 스키마 불일치 — 지정된 필드 구성을 정확히 지켜라"];
       continue;
     }
-    const issues = validateTodayFortune(parsed, input.dayTone);
-    if (issues.length === 0) return { sections: parsed, provider, model };
+    const issues = validateTodayFortune(parsed, input.dayTone, input.ctaTemplateId, input.goldenSijin.timeRangeLabel);
+    if (issues.length === 0) {
+      const teaserCta = assembleCta(input.ctaTemplateId, parsed.todaySummarySentence);
+      return { result: { ...parsed, teaserCta }, provider, model };
+    }
     console.warn(`[today-fortune retry] attempt ${attempt + 1} 위반: ${issues.join(" / ")}`);
     prevIssues = issues;
   }

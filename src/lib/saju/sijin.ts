@@ -20,6 +20,27 @@ const SI_DU_START: Record<string, string> = {
 
 export type SijinEntry = { label: string; cheongan: string; jiji: string };
 
+/** 지지 → 실제 시계 시각대 표기(자정/정오를 걸치는 자시·오시만 표현이 다름). */
+const SIJIN_TIME_RANGE: Record<string, string> = {
+  자: "밤 11시~새벽 1시",
+  축: "새벽 1~3시",
+  인: "새벽 3~5시",
+  묘: "아침 5~7시",
+  진: "아침 7~9시",
+  사: "오전 9~11시",
+  오: "오전 11시~오후 1시",
+  미: "오후 1~3시",
+  신: "오후 3~5시",
+  유: "오후 5~7시",
+  술: "저녁 7~9시",
+  해: "밤 9~11시",
+};
+
+/** 시진(지지)에 대응하는 실제 시각대 표기. today-fortune 골든타임 등에 사용. */
+export function sijinTimeRangeLabel(jiji: string): string {
+  return SIJIN_TIME_RANGE[jiji] ?? "";
+}
+
 /**
  * 주어진 일간(day 천간)의 하루 12시진 간지를 전부 계산한다.
  * @param dayGan 일간 한글 1글자 (예: "갑")

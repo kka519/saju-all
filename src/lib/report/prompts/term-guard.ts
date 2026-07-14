@@ -8,7 +8,7 @@
 // ⚠️ system.ts 의 티어 목록을 바꾸면 여기 상수도 함께 갱신할 것.
 
 /** 티어 2 — 번역 우선. 파트 내 허용 등장 횟수: 병기 1회 + 여유 1회 = 최대 2회. */
-const TRANSLATE_FIRST_TERMS = [
+export const TRANSLATE_FIRST_TERMS = [
   "식신",
   "상관",
   "정재",
@@ -29,7 +29,7 @@ const TRANSLATE_FIRST_TERMS = [
 ] as const;
 
 /** 티어 3 — 본문 사용 금지 (표·명식표 전용). */
-const FORBIDDEN_TERMS = [
+export const FORBIDDEN_TERMS = [
   "지장간",
   "공망",
   "재다신약",

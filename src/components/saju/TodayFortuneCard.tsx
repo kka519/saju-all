@@ -1,7 +1,7 @@
 // =====================================================
 // 오늘의 운세 — "오늘의 날씨" 카드
 // =====================================================
-// today-fortune 전용 결과 렌더러. saju_results.today_fortune(6블록 JSON)을 그대로
+// today-fortune 전용 결과 렌더러. saju_results.today_fortune(7블록 JSON)을 그대로
 // 받아 구조화된 섹션으로 렌더한다 — 다른 상품의 <ResultBody markdown=.../> 자유
 // 마크다운 경로와 분리(results/[resultId]/page.tsx 에서 slug 분기).
 //
@@ -13,8 +13,11 @@ import Link from "next/link";
 export type TodayFortuneSections = {
   dayTone: "good" | "mixed" | "caution";
   headline: string;
+  psychSnipe: string;
+  weatherReason: string;
   flow: { morning: string; afternoon: string; evening: string };
-  point: { items: string[]; avoid: string };
+  goldenTimeLabel: string;
+  point: { take: string; avoid: string };
   check: string;
   teaserCta: { teaser: string; ctaLabel: string };
   tomorrow: string;
@@ -39,7 +42,9 @@ export function TodayFortuneCard({ data }: { data: TodayFortuneSections }) {
           <span className="text-3xl">{weather.emoji}</span>
           <span className="text-sm font-semibold text-starlight">{weather.label}</span>
         </div>
-        <p className="text-lg font-semibold leading-snug text-night-fg">{data.headline}</p>
+        <p className="text-lg font-semibold leading-snug text-night-fg mb-3">{data.headline}</p>
+        <p className="text-sm text-night-fg-soft mb-3 leading-relaxed">{data.psychSnipe}</p>
+        <p className="text-sm text-night-fg-soft">{data.weatherReason}</p>
       </section>
 
       <section className="rounded-lg border border-night-border bg-night-secondary p-6">
@@ -49,19 +54,21 @@ export function TodayFortuneCard({ data }: { data: TodayFortuneSections }) {
           <div><dt className="inline font-semibold text-night-fg">오후 · </dt><dd className="inline">{data.flow.afternoon}</dd></div>
           <div><dt className="inline font-semibold text-night-fg">저녁 · </dt><dd className="inline">{data.flow.evening}</dd></div>
         </dl>
+        <p className="mt-3 inline-flex items-center rounded-full bg-starlight/15 px-3 py-1 text-xs font-semibold text-starlight">
+          ⏰ 골든타임 · {data.goldenTimeLabel}
+        </p>
       </section>
 
-      <section className="rounded-lg border border-night-border bg-night-secondary p-6">
-        <p className="text-xs font-mono text-night-fg-muted mb-3">오늘의 포인트</p>
-        <ul className="space-y-1.5 text-sm text-night-fg-soft list-disc pl-5">
-          {data.point.items.map((item, i) => (
-            <li key={i}>{item}</li>
-          ))}
-        </ul>
-        <p className="mt-3 text-sm text-night-fg-soft">
-          <span className="font-semibold text-starlight">피할 것 · </span>
-          {data.point.avoid}
-        </p>
+      <section className="rounded-lg border border-night-border bg-night-secondary p-6 space-y-3">
+        <p className="text-xs font-mono text-night-fg-muted">오늘의 포인트</p>
+        <div>
+          <p className="text-sm font-semibold text-starlight mb-1">취할 것</p>
+          <p className="text-sm text-night-fg-soft">{data.point.take}</p>
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-starlight mb-1">피할 것</p>
+          <p className="text-sm text-night-fg-soft">{data.point.avoid}</p>
+        </div>
       </section>
 
       <p className="text-sm text-night-fg-muted italic">{data.check}</p>
