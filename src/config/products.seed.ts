@@ -14,6 +14,8 @@ export type ProductSeed = {
   original_price?: number;
   /** 상품 카드에 노출할 배지 텍스트 (예: "론칭 특가"). */
   badge_label?: string;
+  /** 카드 한 줄 가치 표기 (예: "16종 풀 분석 기반 심층 풀이"). */
+  value_line?: string;
   display_order: number;
   is_active: boolean;
 };
@@ -24,6 +26,7 @@ export const productsSeed: ProductSeed[] = [
     name: "오늘의 운세",
     description: "오늘 하루 흐름을 두리가 한 줄로 짚어드려요. 매일 가볍게 만나봐요.",
     price: 880,
+    value_line: "매일 아침, 하루의 흐름 한 줄",
     display_order: 10,
     is_active: true,
   },
@@ -35,6 +38,7 @@ export const productsSeed: ProductSeed[] = [
     price: 9900,
     original_price: 39900,
     badge_label: "론칭 특가",
+    value_line: "A4 20페이지 PDF · 30년 백테스트 검증",
     display_order: 15,
     is_active: true,
   },
@@ -69,7 +73,8 @@ export const productsSeed: ProductSeed[] = [
     slug: "love-saju",
     name: "연애 사주",
     description: "16종 풀 분석으로 내 연애 성향과 잘 맞는 사람 유형을 깊이 있게 풀어드려요.",
-    price: 3900,
+    price: 5900,
+    value_line: "16종 풀 분석 기반 심층 풀이",
     display_order: 50,
     is_active: true,
   },
@@ -77,7 +82,8 @@ export const productsSeed: ProductSeed[] = [
     slug: "couple-match",
     name: "커플 궁합",
     description: "본인과 상대 두 사람 사주를 모두 입력하면, 합충 비교로 궁합을 자세히 알려드려요.",
-    price: 6160,
+    price: 19900,
+    value_line: "두 사람 명식 교차 분석",
     display_order: 60,
     is_active: true,
   },
@@ -92,9 +98,10 @@ export const productsSeed: ProductSeed[] = [
   },
   {
     slug: "love-consulting",
-    name: "연애 컨설팅+사주 (메인)",
+    name: "연애 컨설팅+사주",
     description: "사주 기반 연애 운에 행동 조언까지 통합. 두리가 가장 정성껏 풀어드리는 메인 상품이에요.",
-    price: 26400,
+    price: 29900,
+    value_line: "연애 운 + 행동 전략 통합 컨설팅",
     display_order: 80,
     is_active: true,
   },

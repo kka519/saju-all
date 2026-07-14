@@ -31,6 +31,7 @@ type ProductRow = {
   price: number;
   original_price?: number | null; // 0007 마이그레이션
   badge_label?: string | null;    // 0007 마이그레이션
+  value_line?: string | null;     // 0008 마이그레이션
   display_order: number;
   is_active: boolean;
   created_at: string;
@@ -140,6 +141,7 @@ export type Database = {
           price: number;
           original_price?: number | null;
           badge_label?: string | null;
+          value_line?: string | null;
           display_order?: number;
           is_active?: boolean;
           created_at?: string;
