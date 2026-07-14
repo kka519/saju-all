@@ -11,23 +11,24 @@
 import Link from "next/link";
 
 export type TodayFortuneSections = {
+  dayTone: "good" | "mixed" | "caution";
   headline: string;
   flow: { morning: string; afternoon: string; evening: string };
   point: { items: string[]; avoid: string };
   check: string;
   teaserCta: { teaser: string; ctaLabel: string };
   tomorrow: string;
-  dayQuality: "good" | "bad";
   targetSlug: string;
 };
 
 const WEATHER = {
   good: { emoji: "☀️", label: "맑음" },
-  bad: { emoji: "🌧️", label: "소나기" },
+  mixed: { emoji: "⛅", label: "구름" },
+  caution: { emoji: "🌧️", label: "소나기" },
 } as const;
 
 export function TodayFortuneCard({ data }: { data: TodayFortuneSections }) {
-  const weather = WEATHER[data.dayQuality];
+  const weather = WEATHER[data.dayTone];
 
   return (
     <div className="space-y-6">

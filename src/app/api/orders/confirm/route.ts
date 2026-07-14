@@ -18,9 +18,11 @@ import {
   sajuInputToZiweiInput,
   type SajuInputRow,
 } from "@/lib/saju/route-adapters";
-import { fetchDayGanji, judgeDayQuality, routeCtaSlug } from "@/lib/saju/today-ganji";
+import { fetchDayGanji, analyzeDayTone, routeCtaSlug } from "@/lib/saju/today-ganji";
 import { computeSijinTable } from "@/lib/saju/sijin";
 import { generateTodayFortuneWithRetry } from "@/lib/saju/today-fortune-prompt";
+import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
+import type { Oheng } from "@/lib/saju/derived";
 
 const bodySchema = z.object({
   paymentKey: z.string().min(1),
@@ -184,7 +186,16 @@ export async function POST(request: NextRequest) {
         fetchDayGanji(tomorrow),
       ]);
       const sijinTable = computeSijinTable(todayGanji.cheongan);
-      const dayQuality = judgeDayQuality(todayGanji.jiji, myeongsik.day?.jiji ?? "");
+
+      // 용신/희신/기신 오행 — full_analysis 있을 때만 채워짐(mock 폴백이면 undefined,
+      // analyzeDayTone 이 관계 점수만으로 판정하도록 안전하게 흡수).
+      const view = buildMyeongsikView(myeongsik, fullAnalysis);
+      const { tone: dayTone, relations, ohengNote } = analyzeDayTone(todayGanji, myeongsik, {
+        yongsinOheng: view.yongsin?.오행 as Oheng | undefined,
+        huisinOheng: view.gyeokguk?.희신오행 as Oheng | undefined,
+        gisinOheng: view.gyeokguk?.기신오행 as Oheng | undefined,
+      });
+
       const targetSlug = routeCtaSlug(input.concerns);
       const { data: targetProduct } = await service
         .from("products")
@@ -200,7 +211,9 @@ export async function POST(request: NextRequest) {
         todayGanji,
         tomorrowGanji,
         sijinTable,
-        dayQuality,
+        dayTone,
+        relations,
+        ohengNote,
         targetProductName: targetProduct?.name ?? "인생 애널리스트 리포트",
       });
 
@@ -229,7 +242,7 @@ export async function POST(request: NextRequest) {
           myeongsik: myeongsik as never,
           astrolabe: null,
           full_analysis: (fullAnalysis ?? null) as never,
-          today_fortune: { ...sections, dayQuality, targetSlug } as never,
+          today_fortune: { ...sections, targetSlug } as never,
           interpretation_md: flattenedMd,
           llm_provider: provider,
           llm_model: model,
