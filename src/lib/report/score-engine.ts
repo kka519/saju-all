@@ -49,6 +49,9 @@ export type ScorablePeriod = {
   hapChungRelations?: HapChungRelationRaw[];
   /** 십신 라벨 "정재·편인" — 어댑터(normalize)가 raw sipseong 에서 조합해 넘김. */
   sipseong?: string;
+  /** 실제 캘린더 연/월 (월운 전용 — 대운/세운은 label 에 이미 연도가 있어 미사용). */
+  year?: number;
+  month?: number;
 };
 
 const SCALE_CENTER = 60;
@@ -110,6 +113,8 @@ export function scorePeriods(
       tag: determineTag(p, dayGan),
       isCurrent: p.isCurrent,
       sipseong: p.sipseong,
+      year: p.year,
+      month: p.month,
       rawJudgment: p.yongsinJudgment?.종합판정,
       rawScore: raw,
     };

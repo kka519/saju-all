@@ -5,7 +5,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampArray, stripBold } from "./clamp";
-import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
+import { checkMinLengths, sanitizeProseFields, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type ReportPart2Sections = {
@@ -76,10 +76,11 @@ const PART2_RANGES: FieldRanges = {
   checklist: { min: 32, max: 80 },
 };
 
-export function validatePart2(s: ReportPart2Sections): string[] {
-  const prose = [...s.backtest, ...s.checklist].join("\n");
-  return [
-    ...checkTermRules(prose),
-    ...checkMinLengths({ backtest: s.backtest, checklist: s.checklist }, PART2_RANGES),
-  ];
+const PART2_PROSE_KEYS = ["backtest", "checklist"] as const satisfies readonly (keyof ReportPart2Sections)[];
+
+export function sanitizePart2(s: ReportPart2Sections): { sections: ReportPart2Sections; issues: string[] } {
+  const { sections, replaced } = sanitizeProseFields(s, PART2_PROSE_KEYS);
+  if (replaced.length) console.warn(`[report term-guard] PART II 자동 치환: ${replaced.join(", ")}`);
+  const issues = checkMinLengths({ backtest: sections.backtest, checklist: sections.checklist }, PART2_RANGES);
+  return { sections, issues };
 }

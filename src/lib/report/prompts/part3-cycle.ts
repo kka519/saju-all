@@ -7,8 +7,10 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, clampArray } from "./clamp";
-import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
+import { checkMinLengths, sanitizeProseFields, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
+import type { ScoredPeriod } from "../types";
+import { computeQuarterLabels } from "../quarter-labels";
 
 export type SeunRow = { year: number; strategy: string };
 
@@ -83,8 +85,10 @@ const INSTRUCTION = `
 - fiveYearSummary: "**5개년 요약 전략.**"으로 시작. 밟는 해/지키는 해/거두는 해 구분. 160~240자.
 - quarterIntro: 가장 가까운 세운 연도의 성격을 규정하는 도입 문단. 180~260자. 올해의 핵심
   기술 한 가지를 **볼드**로 제시하며 끝맺어라.
-- quarterRows: 그 해를 4분기로 나눈 운용 가이드 4개. 각 90~140자. 해당 분기의 월운 간지
-  기운을 근거로 구체적으로.
+- quarterRows: 향후 12개월을 [분기 라벨] 순서대로 4구간(각 3개월)으로 나눈 운용 가이드 4개.
+  각 90~140자. 해당 분기의 월운 간지 기운을 근거로 구체적으로. 본문에서 분기를 언급할 때는
+  반드시 [분기 라벨]에 제공된 표기(연도 포함)를 그대로 사용하라 — 임의로 "1분기"처럼
+  연도 없이 쓰거나 다른 분기 번호를 매기지 마라.
 - goldenWindowNote: "**골든 윈도우 : OOO.**"으로 시작. 데이터의 골든 월운이 왜 중요한지,
   그 달에 무엇을 배치해야 하는지. 140~220자.
 - donts: 그 해에 하지 말아야 할 것 3가지. 각 60~95자. "**금지 항목** — 이유" 구조.
@@ -118,8 +122,14 @@ const SCHEMA_INSTRUCTION = `
 
 export function buildReportPart3Prompt(data: ReportData): { system: string; user: string } {
   const context = formatReportDataContext(data);
+  const quarterLabels = computeQuarterLabels(data.wolun);
+  const quarterLabelBlock = `[분기 라벨 — quarterRows 는 이 순서·표기와 정확히 대응한다. 본문에서
+분기를 언급할 때 반드시 이 표기를 그대로 사용하라(연도 포함)]
+${quarterLabels.map((l, i) => `${i + 1}구간: ${l.full}`).join("\n")}`;
   const user = `[확정 데이터]
 ${context}
+
+${quarterLabelBlock}
 
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
@@ -143,33 +153,56 @@ const PART3_RANGES: FieldRanges = {
   monthRows: { min: 21, max: 52 },
 };
 
-export function validatePart3(s: ReportPart3Sections): string[] {
-  const prose = [
-    s.daeunNarrative,
-    s.daeunDeep,
-    ...s.daeunCaveats,
-    s.fiveYearSummary,
-    s.quarterIntro,
-    s.goldenWindowNote,
-    ...s.donts,
-  ].join("\n");
-  return [
-    ...checkTermRules(prose),
-    ...checkMinLengths(
-      {
-        daeunNarrative: s.daeunNarrative,
-        daeunComments: s.daeunComments,
-        daeunDeep: s.daeunDeep,
-        daeunCaveats: s.daeunCaveats,
-        seunStrategies: s.seunRows.map((r) => r.strategy),
-        fiveYearSummary: s.fiveYearSummary,
-        quarterIntro: s.quarterIntro,
-        quarterRows: s.quarterRows,
-        goldenWindowNote: s.goldenWindowNote,
-        donts: s.donts,
-        monthRows: s.monthRows,
-      },
-      PART3_RANGES,
-    ),
-  ];
+const PART3_PROSE_KEYS = [
+  "daeunNarrative",
+  "daeunDeep",
+  "daeunCaveats",
+  "fiveYearSummary",
+  "quarterIntro",
+  "goldenWindowNote",
+  "donts",
+] as const satisfies readonly (keyof ReportPart3Sections)[];
+
+// LLM이 본문에 분기를 잘못/부정확하게 언급한 경우(연도 누락, 엉뚱한 분기 번호 등)
+// 재생성 대신 코드가 계산한 정답 라벨로 즉시 치환한다 — 용어 위반 자동 교정과 동일 원칙.
+const QUARTER_MENTION_RE = /\d{0,4}년?\s*[1-4]\s*분기(\s*\([^)]*\))?/;
+
+function fixQuarterLabelMentions(text: string, expectedFull: string): string {
+  return QUARTER_MENTION_RE.test(text) ? text.replace(QUARTER_MENTION_RE, expectedFull) : text;
+}
+
+export function sanitizePart3(
+  s: ReportPart3Sections,
+  wolun: ScoredPeriod[],
+): { sections: ReportPart3Sections; issues: string[] } {
+  const { sections: proseSanitized, replaced } = sanitizeProseFields(s, PART3_PROSE_KEYS);
+
+  const quarterLabels = computeQuarterLabels(wolun);
+  const fixedQuarterRows = proseSanitized.quarterRows.map((text, i) => {
+    const expected = quarterLabels[i]?.full;
+    if (!expected) return text;
+    const next = fixQuarterLabelMentions(text, expected);
+    if (next !== text) replaced.push(`quarterRows[${i}]:분기라벨교정`);
+    return next;
+  });
+  const sections: ReportPart3Sections = { ...proseSanitized, quarterRows: fixedQuarterRows };
+
+  if (replaced.length) console.warn(`[report term-guard] PART III 자동 치환: ${replaced.join(", ")}`);
+  const issues = checkMinLengths(
+    {
+      daeunNarrative: sections.daeunNarrative,
+      daeunComments: sections.daeunComments,
+      daeunDeep: sections.daeunDeep,
+      daeunCaveats: sections.daeunCaveats,
+      seunStrategies: sections.seunRows.map((r) => r.strategy),
+      fiveYearSummary: sections.fiveYearSummary,
+      quarterIntro: sections.quarterIntro,
+      quarterRows: sections.quarterRows,
+      goldenWindowNote: sections.goldenWindowNote,
+      donts: sections.donts,
+      monthRows: sections.monthRows,
+    },
+    PART3_RANGES,
+  );
+  return { sections, issues };
 }

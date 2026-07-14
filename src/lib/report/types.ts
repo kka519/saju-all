@@ -24,4 +24,7 @@ export type ScoredPeriod = {
   rawJudgment?: string;
   /** luckyloveme 원 종합점수 (rescale 전 원본값) — 디버그/검증용 */
   rawScore?: number;
+  /** 실제 캘린더 연/월 (월운 전용) — p.13/p.14 실캘린더 라벨 계산에 사용. */
+  year?: number;
+  month?: number;
 };

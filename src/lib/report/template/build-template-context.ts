@@ -25,6 +25,8 @@ import {
   ACCURACY_STATEMENT,
 } from "./fixed-sections";
 import type { ScoredPeriod } from "../types";
+import { computeQuarterLabels } from "../quarter-labels";
+import { classifyDisclosures } from "../sinsal-classification";
 
 /** 투자의견(BUY/HOLD/SELL) 은유 — 현재 지수 기반. */
 function ratingLabel(score: number): { opinion: string; sub: string } {
@@ -98,12 +100,20 @@ export function buildTemplateContext(
       : `${meta.birthTimeLabel} 출생 — 시주 반영 완료`;
 
   // p.13 분기 표의 "월운 (절기)" 컬럼 — 월운 배열은 "현재 달부터 12개월" 순서이므로
-  // 달력 분기가 아니라 배열 순서대로 3개월씩 묶는다 (Q1 = 앞 3개월 = 예: 7~9월).
-  // prompt 도 같은 정의("그 해를 4분기로" = 향후 12개월을 4등분)로 서술하므로 정합.
+  // 달력 분기가 아니라 배열 순서대로 3개월씩 묶는다. 라벨은 구간 첫 달의 실제
+  // 연도/분기로 계산(quarter-labels.ts) — PART III 프롬프트 주입과 동일 소스.
   const quarterGanji = (qi: number) => {
     const parts = wolun.slice(qi * 3, qi * 3 + 3).map((w) => w.ganji);
     return parts.length ? parts.join(" → ") : "—";
   };
+  const quarterLabels = computeQuarterLabels(wolun);
+
+  // p.7 공시 표 — 위치는 LLM이 쓰지 않고 코드가 classifyDisclosures() 원본에서 그대로 붙인다.
+  const { favorable: favorableCandidates, caution: cautionCandidates } = classifyDisclosures(data);
+  const disclosurePosition = new Map<string, string>();
+  for (const c of [...favorableCandidates, ...cautionCandidates]) {
+    if (!disclosurePosition.has(c.item)) disclosurePosition.set(c.item, c.position);
+  }
 
   return {
     meta: {
@@ -159,7 +169,15 @@ export function buildTemplateContext(
     complementTasks: sections.part1.complementTasks,
     valuechainComment: sections.part1.valuechainComment,
     jaedaWarning: sections.part1.jaedaWarning,
-    sinsalRows: sections.part1.sinsalRows,
+    favorableDisclosures: sections.part1.favorableDisclosures.map((r) => ({
+      ...r,
+      position: disclosurePosition.get(r.item) ?? "-",
+    })),
+    cautionDisclosures: sections.part1.cautionDisclosures.map((r) => ({
+      ...r,
+      position: disclosurePosition.get(r.item) ?? "-",
+    })),
+    analystNote: sections.part1.analystNote,
 
     ohaengChartSvg: renderOhaengPortfolioChart(ohaengCount),
 
@@ -189,7 +207,9 @@ export function buildTemplateContext(
     fiveYearSummary: sections.part3.fiveYearSummary,
     quarterIntro: sections.part3.quarterIntro,
     quarterRows: sections.part3.quarterRows.map((text, i) => ({
-      label: `Q${i + 1}`,
+      year: quarterLabels[i]?.year ?? "-",
+      quarterNum: quarterLabels[i]?.quarterNum ?? i + 1,
+      monthRange: quarterLabels[i]?.monthRange ?? "-",
       wolunGanji: quarterGanji(i),
       text,
     })),
@@ -201,9 +221,10 @@ export function buildTemplateContext(
     wolunTable: wolun.map((w, i) => ({
       ...w,
       badge: tagBadge(w.tag),
-      monthLabel: w.label.replace("\n", " ").split(" ")[0] ?? w.label,
+      monthLabel: w.year != null && w.month != null ? `${w.year}.${w.month}` : (w.label.replace("\n", " ").split(" ")[0] ?? w.label),
       sipseongLabel: w.sipseong ?? "-",
       note: sections.part3.monthRows[i] ?? "",
+      yearStart: i > 0 && wolun[i - 1].year != null && w.year !== wolun[i - 1].year,
     })),
 
     profitIntro: sections.part4.profitIntro,

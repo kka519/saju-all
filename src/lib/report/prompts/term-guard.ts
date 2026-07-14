@@ -96,6 +96,176 @@ function countOccurrences(text: string, term: string): number {
   return count;
 }
 
+// ─────────────────────────────────────────────────────
+// 자동 치환 사전 — 용어 위반은 재생성하지 않고 이 사전으로 즉시 교정한다.
+// (재생성은 JSON 파싱 실패 등 구조적 위반에만 남겨둔다.)
+// ─────────────────────────────────────────────────────
+
+/** 티어2 — 허용 횟수 초과분을 대체할 번역어 (fixed-sections.ts TERM_TRANSLATION_ROWS 와 동일 어휘). */
+const TIER2_TRANSLATIONS: Record<string, string> = {
+  식신: "생산 엔진",
+  상관: "혁신 엔진",
+  정재: "고정수익",
+  편재: "변동수익",
+  정관: "신용·규율",
+  편관: "압박·구조조정",
+  정인: "무형자산",
+  편인: "특수자산",
+  비견: "자기지분",
+  겁재: "자기지분",
+  세운: "연간 시황",
+  월운: "월간 시황",
+  용신: "핵심 성장동력",
+  희신: "우군 섹터",
+  기신: "과열 리스크 섹터",
+  신강: "자본 체력",
+  신약: "자본 체력",
+};
+
+/** 티어3 — 본문 절대 금지어. 등장 즉시 무조건 치환(허용 횟수 없음). */
+const TIER3_REPLACEMENTS: Record<string, string> = {
+  지장간: "내면에 숨은 기운",
+  공망: "기운이 비어 있는 자리",
+  재다신약: "부담이 체력을 넘어서는 구조",
+  장생: "기운이 태동하는 단계",
+  건록: "기운이 무르익은 단계",
+  제왕: "기운이 절정인 단계",
+  목욕: "기운이 불안정한 단계",
+  관대: "기운이 자리 잡는 단계",
+  "12운성": "기운의 성장 단계",
+  십이운성: "기운의 성장 단계",
+  백호살: "돌발 변수",
+  원진: "어긋나는 궁합",
+  역마: "이동·변화 기질",
+  도화: "매력·인기 기질",
+  화개: "예술적 감수성",
+  귀문: "예민한 감각",
+  홍염: "매력 기질",
+  반안살: "안정적인 자리",
+  장성살: "주도권을 쥐는 기질",
+  겁살: "급변 리스크",
+  망신살: "평판 리스크",
+  지살: "이동이 잦은 기질",
+  현침: "예리한 기질",
+  고란살: "고독한 구조",
+  금여: "전략적 조력",
+  암록: "숨은 조력",
+  병약: "구조적 부담",
+  약신: "보완 처방 기운",
+  구신: "부담을 키우는 기운",
+  통관: "가교 역할",
+  파극: "깎아먹음",
+  재극인: "수익이 자산을 깎는 구조",
+  식신생재: "생산이 수익을 낳는 흐름",
+  설기: "기운이 빠져나감",
+  투출: "기운이 겉으로 드러남",
+  득령: "기반이 튼튼함",
+  득지: "뿌리가 튼튼함",
+  득세: "세력이 강함",
+  방합: "기운의 결합",
+  반합: "기운의 결합",
+  삼합: "기운의 결합",
+  육합: "기운의 결합",
+  지지충: "기운의 충돌",
+  간여지동: "자기 주도적 기질",
+  사화비입: "기운이 스며듦",
+};
+
+/** 괄호 병기 구간은 건너뛰고, 허용 횟수(allowed)를 초과하는 등장분만 replacement 로 치환. */
+function replaceOverflowOutsideParens(
+  text: string,
+  term: string,
+  allowed: number,
+  replacement: string,
+): string {
+  let count = 0;
+  let result = "";
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === "(") {
+      const close = text.indexOf(")", i);
+      const end = close === -1 ? text.length : close + 1;
+      result += text.slice(i, end);
+      i = end;
+      continue;
+    }
+    if (text.startsWith(term, i)) {
+      count++;
+      result += count <= allowed ? term : replacement;
+      i += term.length;
+    } else {
+      result += text[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+/**
+ * 산문 한 필드에 대한 자동 치환. 재생성 없이 즉시 규칙을 통과시키기 위한 후처리.
+ * @returns 치환된 텍스트 + 치환된 용어 목록(로그용)
+ */
+export function sanitizeProse(text: string): { text: string; replaced: string[] } {
+  let result = text;
+  const replaced: string[] = [];
+
+  // 티어3: 등장 즉시 무조건 치환
+  for (const term of FORBIDDEN_TERMS) {
+    if (result.includes(term)) {
+      result = result.split(term).join(TIER3_REPLACEMENTS[term] ?? "해당 기운");
+      replaced.push(term);
+    }
+  }
+
+  // 티어2: 허용 횟수(괄호 병기 제외) 초과분만 치환
+  for (const term of TRANSLATE_FIRST_TERMS) {
+    const next = replaceOverflowOutsideParens(
+      result,
+      term,
+      MAX_TRANSLATE_FIRST_OCCURRENCES,
+      TIER2_TRANSLATIONS[term] ?? term,
+    );
+    if (next !== result) replaced.push(term);
+    result = next;
+  }
+
+  // 한자 — 본문은 한글만. 안전하게 전부 제거(명식표/차트는 별도 경로라 영향 없음).
+  if (CJK_IDEOGRAPH_RE.test(result)) {
+    result = result.replace(new RegExp(CJK_IDEOGRAPH_RE.source, "g"), "");
+    replaced.push("한자");
+  }
+
+  return { text: result, replaced };
+}
+
+/**
+ * 섹션 객체의 지정된 산문 필드(string | string[])들에 sanitizeProse 를 일괄 적용.
+ * 표 셀 필드는 원어 허용이므로 이 함수의 대상에 포함시키지 않는다.
+ */
+export function sanitizeProseFields<T extends Record<string, unknown>>(
+  sections: T,
+  proseKeys: readonly (keyof T & string)[],
+): { sections: T; replaced: string[] } {
+  const replaced: string[] = [];
+  const out: Record<string, unknown> = { ...sections };
+  for (const key of proseKeys) {
+    const val = (sections as Record<string, unknown>)[key];
+    if (typeof val === "string") {
+      const r = sanitizeProse(val);
+      out[key] = r.text;
+      if (r.replaced.length) replaced.push(...r.replaced.map((t) => `${key}:${t}`));
+    } else if (Array.isArray(val)) {
+      out[key] = val.map((item) => {
+        if (typeof item !== "string") return item;
+        const r = sanitizeProse(item);
+        if (r.replaced.length) replaced.push(...r.replaced.map((t) => `${key}:${t}`));
+        return r.text;
+      });
+    }
+  }
+  return { sections: out as T, replaced };
+}
+
 /**
  * 산문 텍스트(파트의 산문 필드 연결본)에 대한 용어 규칙 검사.
  * @returns 위반 사유 배열 (빈 배열 = 통과)
@@ -130,12 +300,13 @@ export function checkTermRules(proseText: string): string[] {
   return issues;
 }
 
-/** 필드별 분량 범위. min 미기재 시 max의 80%. */
+/** 필드별 분량 범위. min 미기재 시 max의 70%. */
 export type FieldRange = { min?: number; max: number };
 export type FieldRanges = Record<string, FieldRange>;
 
 /**
  * 분량 하한 검사. fields 는 {필드명: 문자열 또는 문자열배열} — 배열은 각 원소 검사.
+ * 게이트 판정에는 -5% 허용 오차를 둔다 — 근소 미달로 재시도를 낭비하지 않기 위함.
  * @returns 위반 사유 배열
  */
 export function checkMinLengths(
@@ -144,14 +315,17 @@ export function checkMinLengths(
 ): string[] {
   const issues: string[] = [];
   for (const [name, range] of Object.entries(ranges)) {
-    const min = range.min ?? Math.floor(range.max * 0.8);
+    const min = range.min ?? Math.floor(range.max * 0.7);
+    const threshold = Math.floor(min * 0.95);
     const value = fields[name];
     if (value === undefined) continue;
     const items = Array.isArray(value) ? value : [value];
     items.forEach((item, i) => {
-      if (item.length < min) {
+      if (item.length < threshold) {
         const label = Array.isArray(value) ? `${name}[${i}]` : name;
-        issues.push(`필드 ${label} 분량 미달: ${item.length}자 (최소 ${min}자) — 더 구체적으로 서술 필요`);
+        issues.push(
+          `필드 ${label} 분량 미달: ${item.length}자 (목표 ${min}자, 허용하한 ${threshold}자) — 입력 JSON의 수치·간지 근거를 더 인용해 구체적으로 서술 필요`,
+        );
       }
     });
   }

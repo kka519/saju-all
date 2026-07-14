@@ -11,11 +11,12 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, stripBold } from "./clamp";
-import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
+import { checkMinLengths, sanitizeProseFields, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
+import { classifyDisclosures } from "../sinsal-classification";
 
 export type DecisionStyleRow = { item: string; diagnosis: string; basis: string };
-export type SinsalRow = { name: string; note: string };
+export type DisclosureRow = { item: string; content: string };
 export type SpecNotes = {
   ohaeng: string;
   strength: string;
@@ -41,7 +42,9 @@ export type ReportPart1Sections = {
   complementTasks: string; // p.5 골드박스 보완 과제, 50~90자
   valuechainComment: string; // p.6, 240~320자
   jaedaWarning: string; // p.6 구조적 경고, 220~300자
-  sinsalRows: SinsalRow[]; // 신살/귀인 해설, 각 note 70~120자
+  favorableDisclosures: DisclosureRow[]; // p.7 우호 공시 표, 3~5행
+  cautionDisclosures: DisclosureRow[]; // p.7 주의 공시 표, 3~5행 (충/합/공망 포함)
+  analystNote: string; // p.7 애널리스트 노트 콜아웃, 210~300자
 };
 
 function isNonEmptyString(v: unknown): v is string {
@@ -82,11 +85,17 @@ export function parseReportPart1Sections(obj: unknown): ReportPart1Sections | nu
   if (!isNonEmptyString(o.complementTasks)) return null;
   if (!isNonEmptyString(o.valuechainComment)) return null;
   if (!isNonEmptyString(o.jaedaWarning)) return null;
-  if (!Array.isArray(o.sinsalRows) || o.sinsalRows.length < 1) return null;
-  for (const row of o.sinsalRows) {
+  if (!Array.isArray(o.favorableDisclosures) || o.favorableDisclosures.length < 2) return null;
+  for (const row of o.favorableDisclosures) {
     const r = row as Record<string, unknown>;
-    if (!isNonEmptyString(r.name) || !isNonEmptyString(r.note)) return null;
+    if (!isNonEmptyString(r.item) || !isNonEmptyString(r.content)) return null;
   }
+  if (!Array.isArray(o.cautionDisclosures) || o.cautionDisclosures.length < 2) return null;
+  for (const row of o.cautionDisclosures) {
+    const r = row as Record<string, unknown>;
+    if (!isNonEmptyString(r.item) || !isNonEmptyString(r.content)) return null;
+  }
+  if (!isNonEmptyString(o.analystNote)) return null;
   // 최종 방어선 — LLM이 분량 상한을 넘겨도 여기서 강제로 자름 (A4 고정 레이아웃 보호).
   const notes = o.specNotes as SpecNotes;
   return {
@@ -110,10 +119,15 @@ export function parseReportPart1Sections(obj: unknown): ReportPart1Sections | nu
     complementTasks: clampChars(o.complementTasks as string, 100),
     valuechainComment: clampChars(o.valuechainComment as string, 340),
     jaedaWarning: clampChars(o.jaedaWarning as string, 320),
-    sinsalRows: (o.sinsalRows as SinsalRow[]).map((r) => ({
-      name: stripBold(clampChars(r.name, 20)),
-      note: clampChars(r.note, 130),
+    favorableDisclosures: (o.favorableDisclosures as DisclosureRow[]).map((r) => ({
+      item: stripBold(clampChars(r.item, 20)),
+      content: clampChars(r.content, 150),
     })),
+    cautionDisclosures: (o.cautionDisclosures as DisclosureRow[]).map((r) => ({
+      item: stripBold(clampChars(r.item, 20)),
+      content: clampChars(r.content, 170),
+    })),
+    analystNote: clampChars(o.analystNote as string, 330),
   };
 }
 
@@ -135,16 +149,26 @@ const INSTRUCTION = `
 - complementTasks: "**보완 과제.**"로 시작. 보완할 것들 나열. 50~90자.
 - valuechainComment: 십신 밸류체인(인성→일간→식상→재성→관성 순환) 해설. 240~320자. 어디서 병목이 생기는지 명시.
 - jaedaWarning: 명식의 구조적 리스크 경고. 220~300자. "**OOO 경고.**"로 시작.
-- sinsalRows: 데이터의 [신살]/[귀인] 목록 중 의미 있는 것 5~8개를 골라 해설. 각 {name, note(70~120자)}. note에는 이 사람 삶에서의 발현 방식과 활용/관리 지침 포함.
+- favorableDisclosures: [공시 후보]의 "우호" 목록 중 3~5개를 골라 해설. 각 {item(후보
+  목록의 이름을 그대로 복사 — 창작·변형 금지), content(70~120자)}. content에는 이 사람
+  삶에서의 발현 방식과 활용 팁을 포함.
+- cautionDisclosures: [공시 후보]의 "주의" 목록 중 3~5개를 골라 해설(충/합/공망 항목도
+  포함해서 고르되, 있으면 반드시 1개 이상 포함). 각 {item(후보 목록의 이름을 그대로 복사),
+  content(80~140자)}. content에는 발현 방식과 관리 방안을 함께 제시.
+- analystNote: 위 공시 조합 전체를 종합한 애널리스트 총평. 개별 항목을 다시 나열하지 말고,
+  이 조합이 만드는 핵심 패턴 + 운용 처방을 1~2문장으로. 210~300자. "**애널리스트 노트.**"로 시작.
 
 [핵심 규칙]
 - 모든 수치·간지·오행은 데이터 블록에서 그대로 인용 — 재계산·추측 금지.
 - 각 필드는 빈 문자열 금지. 핵심 어구는 **볼드** 표기.
 - decisionStyle 의 basis 는 반드시 명식 데이터(십성/신살/격국 등)를 근거로 제시.
+- favorableDisclosures/cautionDisclosures 의 item 은 [공시 후보]에 제공된 이름을 그대로
+  쓴다 — 위치는 표기하지 마라(코드가 자동으로 붙인다). content만 작성.
 - ⚠️ 산문 필드(headline/execSummary/keySentence/specComment/ilganDeep/pattern/strengthSummary/
-  complementTasks/valuechainComment/jaedaWarning)에는 신살 원어·공망·12운성 명칭 절대 금지 —
-  "곁의 동료 자리가 비어 있는 구조", "이동이 잦은 기질", "위기에서 배짱이 나오는 승부 기질"처럼
-  쉬운 말로만. 원어는 표 필드(specNotes/decisionStyle/sinsalRows)에서만 허용.
+  complementTasks/valuechainComment/jaedaWarning/analystNote)에는 신살 원어·공망·12운성
+  명칭 절대 금지 — "곁의 동료 자리가 비어 있는 구조", "이동이 잦은 기질", "위기에서 배짱이
+  나오는 승부 기질"처럼 쉬운 말로만. 원어는 표 필드(specNotes/decisionStyle/
+  favorableDisclosures/cautionDisclosures)에서만 허용.
 - ⚠️ 신강/신약도 산문에서 첫 1회만 "자본 체력이 약한 구조(신약, 35점)" 식으로 병기하고,
   이후에는 "자본 체력", "체력" 번역어로만 지칭 (원어 반복 금지).
 `;
@@ -168,15 +192,24 @@ const SCHEMA_INSTRUCTION = `
   "complementTasks": "**보완 과제.** ...",
   "valuechainComment": "...",
   "jaedaWarning": "...",
-  "sinsalRows": [{"name":"...","note":"..."}, ...]
+  "favorableDisclosures": [{"item":"...","content":"..."}, ...3~5개],
+  "cautionDisclosures": [{"item":"...","content":"..."}, ...3~5개],
+  "analystNote": "**애널리스트 노트.** ..."
 }
 JSON 외 다른 텍스트 절대 추가 금지.
 `;
 
 export function buildReportPart1Prompt(data: ReportData): { system: string; user: string } {
   const context = formatReportDataContext(data);
+  const { favorable, caution } = classifyDisclosures(data);
+  const disclosureCandidates = `[공시 후보 — favorableDisclosures/cautionDisclosures 는 이 목록에서만
+골라 작성한다. item은 이름을 그대로 복사하고 위치는 쓰지 마라(자동 부여됨)]
+우호: ${favorable.map((f) => f.item).join(", ") || "없음"}
+주의: ${caution.map((c) => c.item).join(", ") || "없음"}`;
   const user = `[확정 데이터]
 ${context}
+
+${disclosureCandidates}
 
 ${INSTRUCTION}
 ${SCHEMA_INSTRUCTION}`;
@@ -186,51 +219,63 @@ ${SCHEMA_INSTRUCTION}`;
 // ─────────────────────────────────────────────────────
 // 검증 게이트 (term-guard) — 산문 필드 용어 규칙 + 분량 하한
 // ─────────────────────────────────────────────────────
-// 표 셀(specNotes/decisionStyle/sinsalRows)은 티어3 원어 허용이라 용어 검사 제외.
+// 표 셀(specNotes/decisionStyle/favorableDisclosures/cautionDisclosures)은
+// 티어3 원어 허용이라 용어 검사 제외.
 
 // 게이트 하한은 프롬프트 하한보다 ~10% 느슨하게 — 몇 자 차이 재시도 낭비 방지.
+// ilganDeep/keySentence/specComment 는 반복 실측(219/274/293자 등)에서 계속 근소 미달로
+// 4회 재시도를 소진시킴 — 여유를 대폭 키움(약 20~30%↓). 페이지 여백보다 생성 성공이 우선.
 const PART1_RANGES: FieldRanges = {
   headline: { min: 20, max: 40 },
-  execSummary: { min: 128, max: 200 },
-  keySentence: { min: 90, max: 140 },
-  specComment: { min: 255, max: 390 },
-  ilganDeep: { min: 310, max: 460 },
-  pattern: { min: 275, max: 420 },
-  strengthSummary: { min: 72, max: 130 },
-  complementTasks: { min: 45, max: 100 },
-  valuechainComment: { min: 218, max: 340 },
-  jaedaWarning: { min: 200, max: 320 },
+  execSummary: { min: 115, max: 200 },
+  keySentence: { min: 70, max: 140 },
+  specComment: { min: 210, max: 390 },
+  // 반복 미달(219/274/293자) 실측 반영 — 개별 하한 재설정.
+  ilganDeep: { min: 200, max: 460 },
+  pattern: { min: 240, max: 420 },
+  strengthSummary: { min: 65, max: 130 },
+  complementTasks: { min: 40, max: 100 },
+  valuechainComment: { min: 190, max: 340 },
+  jaedaWarning: { min: 175, max: 320 },
+  analystNote: { min: 210, max: 300 },
 };
 
-export function validatePart1(s: ReportPart1Sections): string[] {
-  const prose = [
-    s.headline,
-    ...s.execSummary,
-    s.keySentence,
-    s.specComment,
-    ...s.ilganDeep,
-    s.pattern,
-    s.strengthSummary,
-    s.complementTasks,
-    s.valuechainComment,
-    s.jaedaWarning,
-  ].join("\n");
-  return [
-    ...checkTermRules(prose),
-    ...checkMinLengths(
-      {
-        headline: s.headline,
-        execSummary: s.execSummary,
-        keySentence: s.keySentence,
-        specComment: s.specComment,
-        ilganDeep: s.ilganDeep,
-        pattern: s.pattern,
-        strengthSummary: s.strengthSummary,
-        complementTasks: s.complementTasks,
-        valuechainComment: s.valuechainComment,
-        jaedaWarning: s.jaedaWarning,
-      },
-      PART1_RANGES,
-    ),
-  ];
+const PART1_PROSE_KEYS = [
+  "headline",
+  "execSummary",
+  "keySentence",
+  "specComment",
+  "ilganDeep",
+  "pattern",
+  "strengthSummary",
+  "complementTasks",
+  "valuechainComment",
+  "jaedaWarning",
+  "analystNote",
+] as const satisfies readonly (keyof ReportPart1Sections)[];
+
+/**
+ * 용어 위반은 재생성하지 않고 자동 치환으로 즉시 교정, 분량 미달만 이슈로 반환한다
+ * (재생성은 JSON 파싱 실패 같은 구조적 위반에만 남겨둔다).
+ */
+export function sanitizePart1(s: ReportPart1Sections): { sections: ReportPart1Sections; issues: string[] } {
+  const { sections, replaced } = sanitizeProseFields(s, PART1_PROSE_KEYS);
+  if (replaced.length) console.warn(`[report term-guard] PART I 자동 치환: ${replaced.join(", ")}`);
+  const issues = checkMinLengths(
+    {
+      headline: sections.headline,
+      execSummary: sections.execSummary,
+      keySentence: sections.keySentence,
+      specComment: sections.specComment,
+      ilganDeep: sections.ilganDeep,
+      pattern: sections.pattern,
+      strengthSummary: sections.strengthSummary,
+      complementTasks: sections.complementTasks,
+      valuechainComment: sections.valuechainComment,
+      jaedaWarning: sections.jaedaWarning,
+      analystNote: sections.analystNote,
+    },
+    PART1_RANGES,
+  );
+  return { sections, issues };
 }

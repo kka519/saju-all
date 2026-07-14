@@ -66,6 +66,8 @@ function toWolunPeriods(root: RawWeolunRoot, limit = 12): ScorablePeriod[] {
     yongsinJudgment: w.yongsinJudgment,
     hapChungRelations: undefined, // 월운 응답엔 hapChungRelations 없음 (실측 확인)
     sipseong: sipseongLabel(w.sipseongRelation),
+    year: w.year,
+    month: w.month,
   }));
 }
 

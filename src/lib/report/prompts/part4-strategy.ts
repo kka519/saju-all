@@ -11,7 +11,7 @@
 import { ANALYST_SYSTEM_PROMPT } from "./system";
 import { formatReportDataContext } from "./format-data-context";
 import { clampChars, clampArray, stripBold } from "./clamp";
-import { checkTermRules, checkMinLengths, type FieldRanges } from "./term-guard";
+import { checkMinLengths, sanitizeProse, sanitizeProseFields, type FieldRanges } from "./term-guard";
 import type { ReportData } from "../normalize";
 
 export type PortfolioRow = { item: string; fixed: string; opportunity: string };
@@ -158,8 +158,11 @@ const INSTRUCTION = `
 《p.17 관계 자본》
 - relationIntro: 이 명식의 관계 구조(비겁/관성/귀인 상태)를 규정하는 도입 문단. 200~300자.
 - helperRows: 조력자 매칭 가이드 표 4행. 각 {type: 유형(최대 16자), person: 이런 기운의
-  사람(20~55자), role: 맡길 역할(20~55자)}. 오행·귀인 기반으로.
+  사람(20~55자), role: 맡길 역할(20~55자)}. 오행·귀인 기반으로 — 귀인 원어(금여/암록/천을귀인 등)는
+  이 표 필드에서만 쓰고, "person"에 쓸 땐 "이런 기운의 사람"처럼 쉬운 말로 풀어써라.
 - relationPrinciples: 관계 운용 원칙 3개. 각 {lead: "**원칙 제목.**"(최대 26자), body: 80~140자}.
+  body 에도 귀인 원어(금여/암록/천을귀인/문창귀인 등) 절대 쓰지 마라 — "조력자가 나타나는 시기",
+  "안정적인 인연" 같은 쉬운 말로.
 - relationCallout: "**OOOO 액션 포인트.**"로 시작하는 콜아웃. 140~220자. 시기 데이터 근거.
 
 《p.18 액션 플랜》
@@ -216,47 +219,63 @@ const PART4_RANGES: FieldRanges = {
   profitIntro: { min: 200, max: 340 },
   profitChannelBodies: { min: 72, max: 150 },
   healthNote: { min: 218, max: 380 },
-  riskCallout: { min: 127, max: 240 },
+  // 콜아웃 2종은 반복적으로 2~5자 차이로 걸려 재시도를 낭비함 — 여유폭 더 크게(115).
+  riskCallout: { min: 115, max: 240 },
   relationIntro: { min: 182, max: 320 },
   relationPrincipleBodies: { min: 72, max: 150 },
-  relationCallout: { min: 127, max: 240 },
+  relationCallout: { min: 115, max: 240 },
   actions30days: { min: 42, max: 100 },
   actions1year: { min: 42, max: 100 },
   actions10year: { min: 42, max: 100 },
   closing: { min: 46, max: 100 },
 };
 
-export function validatePart4(s: ReportPart4Sections): string[] {
-  const prose = [
-    s.profitIntro,
-    ...s.profitChannels.flatMap((c) => [c.lead, c.body]),
-    s.healthNote,
-    s.riskCallout,
-    s.relationIntro,
-    ...s.relationPrinciples.flatMap((c) => [c.lead, c.body]),
-    s.relationCallout,
-    ...s.actions30days,
-    ...s.actions1year,
-    ...s.actions10year,
-    ...s.closing,
-  ].join("\n");
-  return [
-    ...checkTermRules(prose),
-    ...checkMinLengths(
-      {
-        profitIntro: s.profitIntro,
-        profitChannelBodies: s.profitChannels.map((c) => c.body),
-        healthNote: s.healthNote,
-        riskCallout: s.riskCallout,
-        relationIntro: s.relationIntro,
-        relationPrincipleBodies: s.relationPrinciples.map((c) => c.body),
-        relationCallout: s.relationCallout,
-        actions30days: s.actions30days,
-        actions1year: s.actions1year,
-        actions10year: s.actions10year,
-        closing: s.closing,
-      },
-      PART4_RANGES,
-    ),
-  ];
+const PART4_SIMPLE_PROSE_KEYS = [
+  "profitIntro",
+  "healthNote",
+  "riskCallout",
+  "relationIntro",
+  "relationCallout",
+  "actions30days",
+  "actions1year",
+  "actions10year",
+  "closing",
+] as const satisfies readonly (keyof ReportPart4Sections)[];
+
+export function sanitizePart4(s: ReportPart4Sections): { sections: ReportPart4Sections; issues: string[] } {
+  const { sections: partial, replaced } = sanitizeProseFields(s, PART4_SIMPLE_PROSE_KEYS);
+
+  const sanitizeLeadBullets = (arr: LeadBullet[]): LeadBullet[] =>
+    arr.map((b) => {
+      const lead = sanitizeProse(b.lead);
+      const body = sanitizeProse(b.body);
+      replaced.push(...lead.replaced, ...body.replaced);
+      return { lead: lead.text, body: body.text };
+    });
+
+  const sections: ReportPart4Sections = {
+    ...partial,
+    profitChannels: sanitizeLeadBullets(s.profitChannels),
+    relationPrinciples: sanitizeLeadBullets(s.relationPrinciples),
+  };
+
+  if (replaced.length) console.warn(`[report term-guard] PART IV·V 자동 치환: ${replaced.join(", ")}`);
+
+  const issues = checkMinLengths(
+    {
+      profitIntro: sections.profitIntro,
+      profitChannelBodies: sections.profitChannels.map((c) => c.body),
+      healthNote: sections.healthNote,
+      riskCallout: sections.riskCallout,
+      relationIntro: sections.relationIntro,
+      relationPrincipleBodies: sections.relationPrinciples.map((c) => c.body),
+      relationCallout: sections.relationCallout,
+      actions30days: sections.actions30days,
+      actions1year: sections.actions1year,
+      actions10year: sections.actions10year,
+      closing: sections.closing,
+    },
+    PART4_RANGES,
+  );
+  return { sections, issues };
 }

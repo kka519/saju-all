@@ -44,6 +44,7 @@ table.grid .hanja { font-size:14pt; font-weight:bold; color:#1A1A2E; }
 table.grid .hanja small { font-size:8pt; color:#888; font-weight:normal; margin-left:1mm; }
 table.grid.small { font-size:8pt; }
 table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
+tr.year-start td { border-top:1.5pt solid #1A1A2E; }
 
 .chart { width:100%; margin:1mm 0 2mm 0; }
 .chart svg { width:100%; height:auto; display:block; }
@@ -249,12 +250,23 @@ table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
 
   <p class="body">신살(神殺)은 명식의 '특약 조항'이다. 좋은 것은 옵션(권리)으로, 주의할 것은 약정(의무)으로 읽으면 된다. 본 명식의 공시사항은 다음과 같다.</p>
 
+  <div class="sec">우호 공시 (호재성 특약)</div>
   <table class="grid small">
-    <tr><th style="width:20%">항목</th><th>내용 및 해설</th></tr>
-    {{#each sinsalRows}}
-    <tr><td><b>{{this.name}}</b></td><td class="l">{{md this.note}}</td></tr>
+    <tr><th style="width:18%">항목</th><th style="width:14%">위치</th><th>내용</th></tr>
+    {{#each favorableDisclosures}}
+    <tr><td><b>{{this.item}}</b></td><td>{{this.position}}</td><td class="l">{{md this.content}}</td></tr>
     {{/each}}
   </table>
+
+  <div class="sec">주의 공시 (변동성 특약)</div>
+  <table class="grid small">
+    <tr><th style="width:18%">항목</th><th style="width:14%">위치</th><th>내용 및 관리 방안</th></tr>
+    {{#each cautionDisclosures}}
+    <tr><td><b>{{this.item}}</b></td><td>{{this.position}}</td><td class="l">{{md this.content}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="gold">{{md analystNote}}</div>
 </div>
 
 <!-- ============ P.8 백테스트 연대기 ============ -->
@@ -356,9 +368,9 @@ table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
 
   <div class="sec">분기별 상세</div>
   <table class="grid small">
-    <tr><th style="width:12%">분기</th><th style="width:22%">월운 (절기)</th><th>진단 및 권고</th></tr>
+    <tr><th style="width:18%">분기</th><th style="width:18%">월운 (절기)</th><th>진단 및 권고</th></tr>
     {{#each quarterRows}}
-    <tr><td><b>{{this.label}}</b></td><td>{{this.wolunGanji}}</td><td class="l">{{md this.text}}</td></tr>
+    <tr><td><b>{{this.year}}년 {{this.quarterNum}}분기</b><br><span style="color:#888;font-size:7.5pt;">({{this.monthRange}})</span></td><td>{{this.wolunGanji}}</td><td class="l">{{md this.text}}</td></tr>
     {{/each}}
   </table>
 
@@ -382,7 +394,7 @@ table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
   <table class="grid small">
     <tr><th style="width:14%">월</th><th style="width:12%">월주</th><th style="width:14%">십신</th><th style="width:8%">지수</th><th>이 달의 운용</th></tr>
     {{#each wolunTable}}
-    <tr{{#if this.isCurrent}} class="hl"{{/if}}><td>{{this.monthLabel}}</td><td>{{this.ganjiHanja}}</td><td>{{this.sipseongLabel}}</td><td><b>{{this.score}}</b></td><td class="l">{{md this.note}}</td></tr>
+    <tr class="{{#if this.isCurrent}}hl {{/if}}{{#if this.yearStart}}year-start{{/if}}"><td>{{this.monthLabel}}</td><td>{{this.ganjiHanja}}</td><td>{{this.sipseongLabel}}</td><td><b>{{this.score}}</b></td><td class="l">{{md this.note}}</td></tr>
     {{/each}}
   </table>
 
