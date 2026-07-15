@@ -69,12 +69,22 @@ async function callAnthropic(req: LlmRequest, model: string, key: string | undef
   if (!key) throw new Error("ANTHROPIC_API_KEY is required when LLM_PROVIDER=anthropic");
   const Anthropic = (await import("@anthropic-ai/sdk")).default;
   const client = new Anthropic({ apiKey: key });
-  const message = await client.messages.create({
+  // non-streaming 요청은 SDK가 10분 제한을 걸어 대형 리포트 생성(수만 토큰)에서
+  // 에러가 난다(2026-07-15, SDK 0.111.0 업그레이드 후 확인) — 스트림으로 받아
+  // finalMessage()로 완결된 응답을 기다린다.
+  const stream = client.messages.stream({
     model,
     max_tokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
     system: req.system,
+    // extended thinking이 요청 안 해도 켜져 있어(SDK 업그레이드 후 확인) max_tokens
+    // 예산을 통째로 thinking에 써버리고 가시 텍스트가 0자로 나오는 문제가 실측
+    // 확인됨(2026-07-15, 커플 리포트 23필드 생성 시 output_tokens=32000 전부
+    // thinking_tokens). 이 앱의 용도(정해진 JSON 스키마 서술)엔 깊은 추론이 불필요해
+    // 명시적으로 꺼서 예산 전량을 가시 출력에 쓰게 한다.
+    thinking: { type: "disabled" },
     messages: [{ role: "user", content: req.user }],
   });
+  const message = await stream.finalMessage();
   const text = message.content
     .map((b) => (b.type === "text" ? b.text : ""))
     .join("\n");
