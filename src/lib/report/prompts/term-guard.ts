@@ -46,6 +46,9 @@ export const FORBIDDEN_TERMS = [
   "원진",
   "역마",
   "도화",
+  // "화개살"을 "화개"보다 먼저 매칭시켜야 함 — 순서가 반대면 "화개"만 치환되고
+  // "살"이 남아 "예술적 감수성살" 같은 어색한 합성어가 생긴다(2026-07-15 실측).
+  "화개살",
   "화개",
   "귀문",
   "홍염",
@@ -58,6 +61,20 @@ export const FORBIDDEN_TERMS = [
   "고란살",
   "금여",
   "암록",
+  // 귀인 16종 — 커플 궁합 리포트 draft 검토에서 다수 노출 확인(2026-07-15,
+  // 지시문_궁합PB수정6건). 표(명식표/신살 공시)에서만 허용, 본문 금지.
+  "천을귀인",
+  "태극귀인",
+  "학당귀인",
+  "문곡귀인",
+  "천덕귀인",
+  "월덕귀인",
+  "문창귀인",
+  "천주귀인",
+  "복성귀인",
+  "재고귀인",
+  "관귀학관",
+  "낙정관살",
   // 고급 관법 용어
   "병약",
   "약신",
@@ -85,6 +102,64 @@ const CJK_IDEOGRAPH_RE = /[一-鿿㐀-䶿]/;
 // 실측 튜닝: 2회는 사주의 핵심 주제어(예: 신약 사주에서 "신약")가 자연스럽게 3~4회
 // 나오는 경우와 충돌해 재시도가 수렴하지 못함. 3회면 남발(기존 용신 31회)은 여전히 차단.
 const MAX_TRANSLATE_FIRST_OCCURRENCES = 3;
+
+// ─────────────────────────────────────────────────────
+// 조사 보정 — 용어 치환 시 "반안살이"→"안정적인 자리이"처럼 받침 유무가 바뀌어
+// 조사가 어색해지는 문제(2026-07-15 궁합 리포트 검토에서 실측 확인) 방지.
+// ─────────────────────────────────────────────────────
+
+/** 완성형 한글 음절의 종성(받침) 유무. 한글 완성형이 아니면(숫자·영문 등) 보수적으로
+ *  받침 있음으로 간주해 "이/은/을" 계열을 유지한다. */
+function hasBatchim(text: string): boolean {
+  const ch = text.trimEnd().slice(-1);
+  const code = ch.charCodeAt(0);
+  if (code < 0xac00 || code > 0xd7a3) return true;
+  return (code - 0xac00) % 28 !== 0;
+}
+
+const PARTICLE_PAIRS: readonly [string, string][] = [
+  ["이", "가"],
+  ["은", "는"],
+  ["을", "를"],
+  ["과", "와"],
+];
+
+/** term 을 replacement 로 치환하되, 바로 뒤에 오는 조사(이/가·은/는·을/를·과/와)를
+ *  replacement의 받침 유무에 맞게 다시 고른다. */
+function replaceTermFixParticle(text: string, term: string, replacement: string): string {
+  if (!text.includes(term)) return text;
+  let result = "";
+  let i = 0;
+  const withBatchim = hasBatchim(replacement);
+  while (i < text.length) {
+    if (text.startsWith(term, i)) {
+      result += replacement;
+      i += term.length;
+      for (const [withB, withoutB] of PARTICLE_PAIRS) {
+        if (text.startsWith(withB, i)) {
+          result += withBatchim ? withB : withoutB;
+          i += withB.length;
+          break;
+        }
+        if (text.startsWith(withoutB, i)) {
+          result += withBatchim ? withB : withoutB;
+          i += withoutB.length;
+          break;
+        }
+      }
+    } else {
+      result += text[i];
+      i++;
+    }
+  }
+  return result;
+}
+
+/** 한자 제거 후 "갑기()"처럼 내용물이 통째로 사라져 빈 껍데기만 남은 괄호(및 그 앞
+ *  공백)를 정리. 원문이 "용어(한자)" 자기주석 패턴을 쓸 때 발생(2026-07-15 실측). */
+function stripEmptyParens(text: string): string {
+  return text.replace(/\s?\([\s,·]*\)/g, "");
+}
 
 function countOccurrences(text: string, term: string): number {
   let count = 0;
@@ -138,6 +213,7 @@ const TIER3_REPLACEMENTS: Record<string, string> = {
   원진: "어긋나는 궁합",
   역마: "이동·변화 기질",
   도화: "매력·인기 기질",
+  화개살: "예술적 감수성",
   화개: "예술적 감수성",
   귀문: "예민한 감각",
   홍염: "매력 기질",
@@ -150,6 +226,18 @@ const TIER3_REPLACEMENTS: Record<string, string> = {
   고란살: "고독한 구조",
   금여: "전략적 조력",
   암록: "숨은 조력",
+  천을귀인: "귀한 도움을 부르는 기운",
+  태극귀인: "근본이 단단한 기운",
+  학당귀인: "총명함을 부르는 기운",
+  문곡귀인: "글재주를 부르는 기운",
+  천덕귀인: "위기를 막아주는 기운",
+  월덕귀인: "위기를 막아주는 기운",
+  문창귀인: "표현력을 부르는 기운",
+  천주귀인: "생활의 안정을 부르는 기운",
+  복성귀인: "복을 부르는 기운",
+  재고귀인: "재물을 모으는 기운",
+  관귀학관: "명예·직위를 부르는 기운",
+  낙정관살: "방심 시 낭패를 부르는 기운",
   병약: "구조적 부담",
   약신: "보완 처방 기운",
   구신: "부담을 키우는 기운",
@@ -191,8 +279,26 @@ function replaceOverflowOutsideParens(
     }
     if (text.startsWith(term, i)) {
       count++;
-      result += count <= allowed ? term : replacement;
-      i += term.length;
+      if (count <= allowed) {
+        result += term;
+        i += term.length;
+      } else {
+        result += replacement;
+        i += term.length;
+        const withBatchim = hasBatchim(replacement);
+        for (const [withB, withoutB] of PARTICLE_PAIRS) {
+          if (text.startsWith(withB, i)) {
+            result += withBatchim ? withB : withoutB;
+            i += withB.length;
+            break;
+          }
+          if (text.startsWith(withoutB, i)) {
+            result += withBatchim ? withB : withoutB;
+            i += withoutB.length;
+            break;
+          }
+        }
+      }
     } else {
       result += text[i];
       i++;
@@ -209,10 +315,10 @@ export function sanitizeProse(text: string): { text: string; replaced: string[] 
   let result = text;
   const replaced: string[] = [];
 
-  // 티어3: 등장 즉시 무조건 치환
+  // 티어3: 등장 즉시 무조건 치환 (조사 보정 포함)
   for (const term of FORBIDDEN_TERMS) {
     if (result.includes(term)) {
-      result = result.split(term).join(TIER3_REPLACEMENTS[term] ?? "해당 기운");
+      result = replaceTermFixParticle(result, term, TIER3_REPLACEMENTS[term] ?? "해당 기운");
       replaced.push(term);
     }
   }
@@ -234,6 +340,9 @@ export function sanitizeProse(text: string): { text: string; replaced: string[] 
     result = result.replace(new RegExp(CJK_IDEOGRAPH_RE.source, "g"), "");
     replaced.push("한자");
   }
+
+  // "용어(한자)" 자기주석 패턴에서 한자만 제거되고 빈 괄호가 남는 경우 정리.
+  result = stripEmptyParens(result);
 
   return { text: result, replaced };
 }
