@@ -55,6 +55,9 @@ async function callExternalManseryeok(
 
 // 데모용 결정론적 mock — 진짜 만세력 계산 X
 // 수강생이 빈 .env로도 결제 → 결과 페이지까지 도달할 수 있도록 함
+// 기존 한계(윤달 전용 이슈 아님): input.calendar/양음력 변환을 전혀 하지 않고 birthDate를
+// 그대로 JS Date로 파싱한다 — 평달 음력 입력도 이미 부정확했다. luckyloveme API가 정상
+// 응답하면 이 경로는 쓰이지 않으므로(폴백 전용) 별도 수정하지 않는다(2026-07-15 확인).
 function mockMyeongsik(input: ManseryeokInput): Myeongsik {
   const cheongan = ["갑", "을", "병", "정", "무", "기", "경", "신", "임", "계"];
   const jiji = ["자", "축", "인", "묘", "진", "사", "오", "미", "신", "유", "술", "해"];

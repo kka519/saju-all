@@ -67,12 +67,12 @@ export type SajuInputRow = {
   calendar: "solar" | "lunar";
   gender: "male" | "female";
   concerns: string[];
+  is_leap_month: boolean; // 0011 마이그레이션
 };
 
 /**
  * SajuInputRow → ZiweiInput 어댑터 (자미두수 계산용).
  * 시 미상(time_unknown=true 또는 birth_time=null) 시 null 반환 → computeZiweiForSlug가 흡수.
- * isLeapMonth는 SajuInputRow에 필드 없어 false 고정 (윤달 UI는 별도 작업).
  */
 export function sajuInputToZiweiInput(input: SajuInputRow): ZiweiInput | null {
   if (input.time_unknown || !input.birth_time) return null;
@@ -86,6 +86,6 @@ export function sajuInputToZiweiInput(input: SajuInputRow): ZiweiInput | null {
     hour: Number(hh),
     minute: Number(mm),
     gender: input.gender === "male" ? "남" : "여",
-    isLeapMonth: false,
+    isLeapMonth: input.is_leap_month,
   };
 }

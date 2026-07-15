@@ -24,6 +24,7 @@
     "date-fns": "^4.1.0",
     "handlebars": "^4.7.9",
     "iztro": "^2.5.8",
+    "korean-lunar-calendar": "^0.4.0",
     "lucide-react": "^0.460.0",
     "nanoid": "^5.0.8",
     "next": "^15.1.0",

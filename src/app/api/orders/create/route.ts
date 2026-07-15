@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { nanoid } from "nanoid";
 import { createClient, createServiceClient } from "@/lib/supabase/server";
+import { isValidLunarDate } from "@/lib/saju/lunar-validation";
 
 const partnerSchema = z.object({
   name: z.string().max(50).optional(),
@@ -10,6 +11,7 @@ const partnerSchema = z.object({
   timeUnknown: z.boolean(),
   gender: z.enum(["male", "female"]),
   calendar: z.enum(["solar", "lunar"]),
+  isLeapMonth: z.boolean().optional().default(false),
 });
 
 const bodySchema = z.object({
@@ -20,9 +22,24 @@ const bodySchema = z.object({
   timeUnknown: z.boolean(),
   gender: z.enum(["male", "female"]),
   calendar: z.enum(["solar", "lunar"]),
+  isLeapMonth: z.boolean().optional().default(false),
   concerns: z.array(z.string().max(20)).max(20),
   partner: partnerSchema.optional(),
 });
+
+// 음력(평달/윤달) 선택 시 결제 전 유효성 확인. 양력인데 isLeapMonth:true 로 변조된
+// 요청은 여기서 false 로 정규화 — API 호출 시점에는 어차피 무시되는 값이지만, DB에
+// 잘못된 상태로 남지 않도록 저장 전에 바로잡는다.
+function validateAndNormalizeLunar(
+  birthDate: string,
+  calendar: "solar" | "lunar",
+  isLeapMonth: boolean,
+): { ok: true; isLeapMonth: boolean } | { ok: false } {
+  if (calendar !== "lunar") return { ok: true, isLeapMonth: false };
+  const [y, m, d] = birthDate.split("-").map((v) => parseInt(v, 10));
+  if (!isValidLunarDate(y, m, d, isLeapMonth)) return { ok: false };
+  return { ok: true, isLeapMonth };
+}
 
 export async function POST(request: NextRequest) {
   const parsed = bodySchema.safeParse(await request.json());
@@ -60,6 +77,21 @@ export async function POST(request: NextRequest) {
   }
   const partner = isCoupleMatch ? body.partner : undefined;
 
+  // 윤달 서버 검증 — 결제 전 마지막 방어선(폼 클라 검증 통과 후에도 재확인).
+  // 없는 연월에 윤달을 선택한 채 여기를 통과하면 결제 후 API 실패→mock 폴백→틀린
+  // 결과 발행으로 이어지므로 반드시 여기서 막는다.
+  const selfLunar = validateAndNormalizeLunar(body.birthDate, body.calendar, body.isLeapMonth);
+  if (!selfLunar.ok) {
+    return NextResponse.json({ error: "생년월일(음력)을 다시 확인해 주세요" }, { status: 400 });
+  }
+  let partnerLunar: { ok: true; isLeapMonth: boolean } | { ok: false } = { ok: true, isLeapMonth: false };
+  if (partner) {
+    partnerLunar = validateAndNormalizeLunar(partner.birthDate, partner.calendar, partner.isLeapMonth);
+    if (!partnerLunar.ok) {
+      return NextResponse.json({ error: "상대방 생년월일(음력)을 다시 확인해 주세요" }, { status: 400 });
+    }
+  }
+
   const orderId = `ord_${nanoid(20)}`;
 
   const { data: order, error: orderErr } = await service
@@ -87,6 +119,7 @@ export async function POST(request: NextRequest) {
     time_unknown: body.timeUnknown,
     gender: body.gender,
     calendar: body.calendar,
+    is_leap_month: selfLunar.isLeapMonth,
     concerns: body.concerns,
     partner_name: partner?.name ?? null,
     partner_birth_date: partner?.birthDate ?? null,
@@ -94,6 +127,7 @@ export async function POST(request: NextRequest) {
     partner_time_unknown: partner?.timeUnknown ?? null,
     partner_gender: partner?.gender ?? null,
     partner_calendar: partner?.calendar ?? null,
+    partner_is_leap_month: partner ? partnerLunar.isLeapMonth : null,
   });
 
   if (inputErr) {

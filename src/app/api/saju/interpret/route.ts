@@ -28,7 +28,8 @@ import {
 import { buildSajuPrompt } from "@/lib/saju/prompt";
 import { generateInterpretation } from "@/lib/saju/llm";
 import { computeZiweiForSlug, type ZiweiSummary } from "@/lib/saju/ziwei";
-import { birthInfoToZiweiInput } from "@/lib/saju/route-adapters";
+import { birthInfoToZiweiInput, type BirthInfo as ZiweiBirthInfo } from "@/lib/saju/route-adapters";
+import { isValidLunarDate } from "@/lib/saju/lunar-validation";
 // ZIWEI_SLUGS / isZiweiSlug 는 ziwei.ts, 어댑터/타입은 route-adapters.ts 로 분리됨.
 // Next.js 15 route handler 는 표준 export 외 추가 export 를 금지(.next/types 검증) → 별도 모듈로.
 
@@ -55,6 +56,16 @@ const bodySchema = z.object({
 
 // BirthInfo 타입 + birthInfoToZiweiInput 어댑터는 src/lib/saju/route-adapters.ts 로 이동.
 // route handler 추가 export 가 Next.js .next/types 검증을 깨므로 별도 모듈로 분리.
+
+function isValidLunarBirthInfo(bi: ZiweiBirthInfo): boolean {
+  if (bi.calendarType !== "음력") return true;
+  return isValidLunarDate(
+    parseInt(bi.birthYear, 10),
+    parseInt(bi.birthMonth, 10),
+    parseInt(bi.birthDay, 10),
+    bi.isLeapMonth ?? false,
+  );
+}
 
 const SCHEMA_INSTRUCTION = `
 
@@ -167,6 +178,29 @@ export async function POST(req: NextRequest) {
         ok: false as const,
         stage: "validation-error" as const,
         error: "궁합을 보려면 상대방 정보도 함께 입력해 주세요.",
+      },
+      { status: 400 },
+    );
+  }
+
+  // 윤달 서버 검증 — 없는 연월에 윤달을 선택한 채 통과하면 API 실패→틀린 결과로
+  // 이어지므로 여기서 막는다(orders/create와 동일 원칙, 데모 경로도 예외 없음).
+  if (!isValidLunarBirthInfo(birthInfo)) {
+    return NextResponse.json(
+      {
+        ok: false as const,
+        stage: "validation-error" as const,
+        error: "선택하신 연월에는 윤달이 없어요. 평달인지 다시 확인해 주세요.",
+      },
+      { status: 400 },
+    );
+  }
+  if (partnerBirthInfo && !isValidLunarBirthInfo(partnerBirthInfo)) {
+    return NextResponse.json(
+      {
+        ok: false as const,
+        stage: "validation-error" as const,
+        error: "상대방 연월에는 윤달이 없어요. 평달인지 다시 확인해 주세요.",
       },
       { status: 400 },
     );

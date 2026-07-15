@@ -43,6 +43,7 @@ type BirthInputLike = {
   time_unknown: boolean;
   gender: "male" | "female";
   calendar: "solar" | "lunar";
+  is_leap_month: boolean;
 };
 
 function toBirthInfo(input: BirthInputLike): BirthInfo {
@@ -56,6 +57,7 @@ function toBirthInfo(input: BirthInputLike): BirthInfo {
     ...(hasTime ? { birthHour: String(parseInt(hh!, 10)), birthMinute: String(parseInt(mm!, 10)) } : {}),
     calendarType: input.calendar === "lunar" ? "음력" : "양력",
     gender: input.gender,
+    isLeapMonth: input.is_leap_month,
   };
 }
 
@@ -216,6 +218,7 @@ export async function POST(request: NextRequest) {
           time_unknown: input.partner_time_unknown ?? false,
           gender: input.partner_gender,
           calendar: input.partner_calendar,
+          is_leap_month: input.partner_is_leap_month ?? false,
         },
         COUPLE_MATCH_FIELDS,
       );

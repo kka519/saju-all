@@ -59,6 +59,7 @@ type SajuInputRow = {
   time_unknown: boolean;
   gender: GenderKind;
   calendar: CalendarKind;
+  is_leap_month: boolean; // 0011 마이그레이션
   concerns: string[];
   // 0010 마이그레이션 — couple-match 전용, 그 외 상품은 전부 null.
   partner_name?: string | null;
@@ -67,6 +68,7 @@ type SajuInputRow = {
   partner_time_unknown?: boolean | null;
   partner_gender?: GenderKind | null;
   partner_calendar?: CalendarKind | null;
+  partner_is_leap_month?: boolean | null; // 0011 마이그레이션
   created_at: string;
 };
 
@@ -187,6 +189,7 @@ export type Database = {
           time_unknown?: boolean;
           gender: GenderKind;
           calendar?: CalendarKind;
+          is_leap_month?: boolean; // 0011 마이그레이션
           concerns?: string[];
           partner_name?: string | null;
           partner_birth_date?: string | null;
@@ -194,6 +197,7 @@ export type Database = {
           partner_time_unknown?: boolean | null;
           partner_gender?: GenderKind | null;
           partner_calendar?: CalendarKind | null;
+          partner_is_leap_month?: boolean | null; // 0011 마이그레이션
           created_at?: string;
         };
         Update: Partial<SajuInputRow>;
