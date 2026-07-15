@@ -10,6 +10,8 @@ import {
   fetchSajuAnalysis,
   formatSajuToManseryeok,
   ganjiToMyeongsik,
+  COUPLE_MATCH_FIELDS,
+  type AnalysisField,
   type BirthInfo,
   type SajuAnalysisResponse,
 } from "@/lib/saju/saju-api";
@@ -33,8 +35,17 @@ const bodySchema = z.object({
 
 // SajuInputRow 타입은 src/lib/saju/route-adapters.ts 에서 import.
 // (자미두수 외 toBirthInfo / toComputeInput 어댑터는 본 route 전용이라 여기 유지.)
+// BirthInputLike — 본인(SajuInputRow 전체)과 상대방(partner_* 필드 5개)이 공유하는
+// 최소 구조. couple-match 상대방 데이터도 이 타입으로 동일한 폴백 로직을 재사용한다.
+type BirthInputLike = {
+  birth_date: string;
+  birth_time: string | null;
+  time_unknown: boolean;
+  gender: "male" | "female";
+  calendar: "solar" | "lunar";
+};
 
-function toBirthInfo(input: SajuInputRow): BirthInfo {
+function toBirthInfo(input: BirthInputLike): BirthInfo {
   const [y, m, d] = input.birth_date.split("-");
   const hasTime = !input.time_unknown && !!input.birth_time;
   const [hh, mm] = hasTime ? input.birth_time!.split(":") : [undefined, undefined];
@@ -48,7 +59,7 @@ function toBirthInfo(input: SajuInputRow): BirthInfo {
   };
 }
 
-function toComputeInput(input: SajuInputRow) {
+function toComputeInput(input: BirthInputLike) {
   return {
     birthDate: input.birth_date,
     birthTime: input.birth_time,
@@ -56,6 +67,34 @@ function toComputeInput(input: SajuInputRow) {
     calendar: input.calendar,
     gender: input.gender,
   };
+}
+
+// luckyloveme API-or-mock 폴백 — 본인/상대방 공용(couple-match는 이 함수를 2회 호출,
+// 서로 독립적으로 폴백된다: 본인 성공+상대 실패 조합도 허용).
+// fields 생략 시 16종 전체([]) 요청 — couple-match 만 COUPLE_MATCH_FIELDS(경량)로 좁힌다.
+// 이유: 두 사람 분 전체 16필드를 합치면 프롬프트가 160K+자로 커져 LLM 응답이 잘리는
+// 문제가 실측 확인됨(2026-07-15) — src/lib/saju/saju-api.ts COUPLE_MATCH_FIELDS 참고.
+async function fetchMyeongsikWithFallback(
+  input: BirthInputLike,
+  fields: AnalysisField[] = [],
+): Promise<{ myeongsik: Myeongsik; manseryeokText?: string; fullAnalysis: SajuAnalysisResponse | null }> {
+  if (!isSajuApiConfigured()) {
+    return { myeongsik: await computeMyeongsik(toComputeInput(input)), fullAnalysis: null };
+  }
+  try {
+    const birthInfo = toBirthInfo(input);
+    const analysis = await fetchSajuAnalysis(birthInfo, fields, { source: "confirm" });
+    const converted = ganjiToMyeongsik(analysis);
+    if (converted) {
+      return { myeongsik: converted, manseryeokText: formatSajuToManseryeok(analysis, birthInfo), fullAnalysis: analysis };
+    }
+    // ganji 필드 누락 — mock 으로 폴백
+    return { myeongsik: await computeMyeongsik(toComputeInput(input)), fullAnalysis: null };
+  } catch (apiErr) {
+    // luckyloveme 호출 실패 — 결제는 이미 승인됐으므로 mock 으로 폴백해서 결과지는 무조건 생성
+    console.error("[saju-api] fallback to mock:", apiErr);
+    return { myeongsik: await computeMyeongsik(toComputeInput(input)), fullAnalysis: null };
+  }
 }
 
 // sajuInputToZiweiInput 어댑터는 src/lib/saju/route-adapters.ts 로 이동.
@@ -147,34 +186,42 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    // 만세력/풀 분석: luckyloveme 키가 있으면 실제 API, 없거나 실패하면 mock 으로 fallback
-    let myeongsik: Myeongsik;
-    let manseryeokText: string | undefined;
+    // 만세력/풀 분석: luckyloveme 키가 있으면 실제 API, 없거나 실패하면 mock 으로 fallback.
+    // couple-match 는 본인도 경량 필드셋 사용(상대방과 합쳐질 때 프롬프트 과다 방지).
+    const selfFields = product.slug === "couple-match" ? COUPLE_MATCH_FIELDS : [];
+    const self = await fetchMyeongsikWithFallback(input, selfFields);
+    const myeongsik = self.myeongsik;
+    const manseryeokText = self.manseryeokText;
     // fullAnalysis: luckyloveme 16종 raw json. saju_results.full_analysis (0006) 컬럼에 저장.
     // mock 폴백/API 미설정/ganji 누락 케이스에서는 null 유지.
-    let fullAnalysis: SajuAnalysisResponse | null = null;
+    const fullAnalysis = self.fullAnalysis;
 
-    if (isSajuApiConfigured()) {
-      try {
-        const birthInfo = toBirthInfo(input);
-        const analysis = await fetchSajuAnalysis(birthInfo, [], { source: "confirm" }); // [] = 16종 전체
-        const converted = ganjiToMyeongsik(analysis);
-        if (converted) {
-          myeongsik = converted;
-          manseryeokText = formatSajuToManseryeok(analysis, birthInfo);
-          // ganji 변환 성공 케이스만 fullAnalysis 보관 (mock 폴백 시 부분 데이터 저장 회피)
-          fullAnalysis = analysis;
-        } else {
-          // ganji 필드 누락 — mock 으로 폴백
-          myeongsik = await computeMyeongsik(toComputeInput(input));
-        }
-      } catch (apiErr) {
-        // luckyloveme 호출 실패 — 결제는 이미 승인됐으므로 mock 으로 폴백해서 결과지는 무조건 생성
-        console.error("[saju-api] fallback to mock:", apiErr);
-        myeongsik = await computeMyeongsik(toComputeInput(input));
+    // couple-match 상대방 데이터 — 2026-07-15 결함 수정: 상대방 없이 궁합 생성 불가(3중 방어의
+    // 세 번째, orders/create 서버 검증 통과 후에도 재확인). 본인과 완전히 독립적으로 폴백된다
+    // (본인 API 성공 + 상대 API 실패 조합도 허용).
+    let partnerMyeongsik: Myeongsik | undefined;
+    let partnerManseryeokText: string | undefined;
+    let partnerFullAnalysis: SajuAnalysisResponse | null = null;
+    if (product.slug === "couple-match") {
+      if (!input.partner_birth_date || !input.partner_gender || !input.partner_calendar) {
+        return NextResponse.json(
+          { error: "상대방 정보가 없어 궁합을 생성할 수 없습니다", detail: "saju_inputs.partner_birth_date missing" },
+          { status: 500 },
+        );
       }
-    } else {
-      myeongsik = await computeMyeongsik(toComputeInput(input));
+      const partnerFetch = await fetchMyeongsikWithFallback(
+        {
+          birth_date: input.partner_birth_date,
+          birth_time: input.partner_birth_time ?? null,
+          time_unknown: input.partner_time_unknown ?? false,
+          gender: input.partner_gender,
+          calendar: input.partner_calendar,
+        },
+        COUPLE_MATCH_FIELDS,
+      );
+      partnerMyeongsik = partnerFetch.myeongsik;
+      partnerManseryeokText = partnerFetch.manseryeokText;
+      partnerFullAnalysis = partnerFetch.fullAnalysis;
     }
 
     // today-fortune 전용 파이프라인 — 해설가이드.md 5장(2026-07-14) "퍼널 입구 상품" 사양.
@@ -284,6 +331,14 @@ export async function POST(request: NextRequest) {
       gender: input.gender,
       concerns: input.concerns,
       ziwei,
+      partner: partnerMyeongsik
+        ? {
+            myeongsik: partnerMyeongsik,
+            manseryeokText: partnerManseryeokText,
+            gender: input.partner_gender!,
+            name: input.partner_name ?? undefined,
+          }
+        : undefined,
     });
 
     const llm = await generateInterpretation({ system, user });
@@ -297,6 +352,9 @@ export async function POST(request: NextRequest) {
         astrolabe: (ziwei ?? null) as never,
         // luckyloveme 16종 풀 분석 raw json. ganji 변환 성공 시만 채움, mock 폴백은 null (0006 마이그레이션).
         full_analysis: (fullAnalysis ?? null) as never,
+        // couple-match 상대방 raw/명식 — 그 외 상품은 항상 null (0010 마이그레이션).
+        partner_full_analysis: (partnerFullAnalysis ?? null) as never,
+        partner_myeongsik: (partnerMyeongsik ?? null) as never,
         interpretation_md: llm.text,
         llm_provider: llm.provider,
         llm_model: llm.model,

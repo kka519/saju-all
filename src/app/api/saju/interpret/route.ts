@@ -22,6 +22,7 @@ import {
   ganjiToMyeongsik,
   isSajuApiConfigured,
   SajuApiError,
+  COUPLE_MATCH_FIELDS,
   type SimpleMyeongsik,
 } from "@/lib/saju/saju-api";
 import { buildSajuPrompt } from "@/lib/saju/prompt";
@@ -48,6 +49,8 @@ const bodySchema = z.object({
   slug: z.string().min(1).optional().default("basic-saju"),
   productName: z.string().min(1).optional().default("기본 사주"),
   concerns: z.array(z.string()).optional().default([]),
+  // couple-match 데모(결제 우회) 경로 — 2026-07-15 결함 수정. 상대방 없이는 아래에서 400.
+  partnerBirthInfo: birthInfoSchema.optional(),
 });
 
 // BirthInfo 타입 + birthInfoToZiweiInput 어댑터는 src/lib/saju/route-adapters.ts 로 이동.
@@ -154,7 +157,20 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { birthInfo, slug, productName, concerns } = parsed.data;
+  const { birthInfo, slug, productName, concerns, partnerBirthInfo } = parsed.data;
+
+  // couple-match 는 상대방 데이터 없이 어떤 경로로도 생성 불가 — 데모 경로도 예외 없음
+  // (2026-07-15 결함 수정, 3중 방어 중 하나. 결제 경로는 orders/create + buildSajuPrompt 게이트).
+  if (slug === "couple-match" && !partnerBirthInfo) {
+    return NextResponse.json(
+      {
+        ok: false as const,
+        stage: "validation-error" as const,
+        error: "궁합을 보려면 상대방 정보도 함께 입력해 주세요.",
+      },
+      { status: 400 },
+    );
+  }
 
   if (!isSajuApiConfigured()) {
     return NextResponse.json(
@@ -167,12 +183,16 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // couple-match 는 본인+상대방 두 배 분량이 합쳐지므로 경량 필드셋 사용 — 전체 16필드를
+  // 둘 다 요청하면 프롬프트가 160K+자로 커져 LLM 응답이 잘리는 문제가 실측 확인됨(2026-07-15).
+  const analysisFields = slug === "couple-match" ? COUPLE_MATCH_FIELDS : [];
+
   // 1) 만세력 API
   const t0 = Date.now();
   let myeongsik: SimpleMyeongsik;
   let manseryeokText: string;
   try {
-    const analysis = await fetchSajuAnalysis(birthInfo, [], { source: "demo" });
+    const analysis = await fetchSajuAnalysis(birthInfo, analysisFields, { source: "demo" });
     const m = ganjiToMyeongsik(analysis);
     if (!m) throw new Error("명식 변환에 필요한 ganji 데이터를 받지 못했습니다.");
     myeongsik = m;
@@ -190,6 +210,31 @@ export async function POST(req: NextRequest) {
     );
   }
   const elapsedApi = Date.now() - t0;
+
+  // 1.2) couple-match 상대방 만세력 — 실패 시 본인과 달리 mock 폴백 없이 에러로 끝낸다
+  // (데모 경로는 실제 결제가 없어 "결과지는 무조건 생성" 원칙을 적용할 이유가 없다).
+  let partnerMyeongsik: SimpleMyeongsik | undefined;
+  let partnerManseryeokText: string | undefined;
+  if (partnerBirthInfo) {
+    try {
+      const partnerAnalysis = await fetchSajuAnalysis(partnerBirthInfo, analysisFields, { source: "demo" });
+      const pm = ganjiToMyeongsik(partnerAnalysis);
+      if (!pm) throw new Error("상대방 명식 변환에 필요한 ganji 데이터를 받지 못했습니다.");
+      partnerMyeongsik = pm;
+      partnerManseryeokText = formatSajuToManseryeok(partnerAnalysis, partnerBirthInfo);
+    } catch (err) {
+      const upstream = err instanceof SajuApiError ? err.status : undefined;
+      return NextResponse.json(
+        {
+          ok: false as const,
+          stage: "api-error" as const,
+          error: "두리가 상대방 만세력을 펼치다 길을 잃었어요. 잠시 후 다시 시도해 주세요.",
+          detail: err instanceof Error ? err.message : String(err),
+        },
+        { status: upstream && upstream >= 400 && upstream < 600 ? upstream : 502 },
+      );
+    }
+  }
 
   // 1.5) 자미두수 (조건부) — 4개 상품 + 시 미상 아닐 때만 계산.
   // computeZiweiForSlug 가 slug 체크 + 시 미상(null) 흡수 + 에러 catch까지 일괄 처리.
@@ -212,6 +257,9 @@ export async function POST(req: NextRequest) {
     gender: birthInfo.gender,
     concerns,
     ziwei,
+    partner: partnerMyeongsik
+      ? { myeongsik: partnerMyeongsik, manseryeokText: partnerManseryeokText, gender: partnerBirthInfo!.gender }
+      : undefined,
   });
   const userWithSchema = user + SCHEMA_INSTRUCTION;
 

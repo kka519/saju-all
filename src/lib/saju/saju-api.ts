@@ -28,6 +28,28 @@ export type AnalysisField =
   | "twelveFortune"    // 12운성
   | "weolun";          // 월운 (최근 3개월 + 현재 + 향후 11개월)
 
+// couple-match 전용 경량 필드셋 — 대운·월운(가장 부피가 큰 시계열 필드, 합쳐서 전체의
+// ~37%) 제외. 이유: 두 사람 몫의 전체 16필드(각 ~80K자)를 합치면 프롬프트가 160K+자로
+// 커져 LLM 응답이 중간에 잘리는 문제가 실측 확인됨(2026-07-15). 궁합 포커스(일간
+// 상생상극·합충·십성 보완)에 daeun/weolun 은 상대적으로 덜 필수적이라 이 둘만 제외 —
+// "관계 발전 시기" 판단에 필요한 세운은 유지.
+export const COUPLE_MATCH_FIELDS: AnalysisField[] = [
+  "ganji",
+  "guiin",
+  "hongyeom",
+  "dohwa",
+  "hwagae",
+  "bigyeonGeobjae",
+  "sibisinsals",
+  "sipseong",
+  "sinStrength",
+  "seun",
+  "hapchung",
+  "gyeokguk",
+  "gyeokgukYongsin",
+  "twelveFortune",
+];
+
 export type BirthInfo = {
   birthYear: string;        // "1990"
   birthMonth: string;       // "5"  (1~12)

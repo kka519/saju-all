@@ -60,7 +60,12 @@ export default async function ProductDetailPage({
       <section>
         <h2 className="text-sm font-semibold mb-4 text-night-fg">사주 정보 입력</h2>
         <p className="text-xs text-night-fg-soft mb-4">정확할수록 더 정밀한 결과가 나옵니다.</p>
-        <SajuForm productId={product.id} productSlug={product.slug} isLoggedIn={!!user} />
+        <SajuForm
+          productId={product.id}
+          productSlug={product.slug}
+          isLoggedIn={!!user}
+          requiresPartner={product.slug === "couple-match"}
+        />
       </section>
 
       {reviews && reviews.length > 0 && (

@@ -60,6 +60,13 @@ type SajuInputRow = {
   gender: GenderKind;
   calendar: CalendarKind;
   concerns: string[];
+  // 0010 마이그레이션 — couple-match 전용, 그 외 상품은 전부 null.
+  partner_name?: string | null;
+  partner_birth_date?: string | null;
+  partner_birth_time?: string | null;
+  partner_time_unknown?: boolean | null;
+  partner_gender?: GenderKind | null;
+  partner_calendar?: CalendarKind | null;
   created_at: string;
 };
 
@@ -70,6 +77,8 @@ type SajuResultRow = {
   astrolabe?: Json | null;       // 0005 마이그레이션 — 그동안 타입에서 누락돼 있던 것 보완
   full_analysis?: Json | null;   // 0006 마이그레이션
   today_fortune?: Json | null;   // 0009 마이그레이션 — today-fortune 6블록 구조화 결과
+  partner_full_analysis?: Json | null; // 0010 마이그레이션 — couple-match 상대방 raw 분석
+  partner_myeongsik?: Json | null;     // 0010 마이그레이션 — couple-match 상대방 명식
   interpretation_md: string;
   llm_provider: string;
   llm_model: string;
@@ -179,6 +188,12 @@ export type Database = {
           gender: GenderKind;
           calendar?: CalendarKind;
           concerns?: string[];
+          partner_name?: string | null;
+          partner_birth_date?: string | null;
+          partner_birth_time?: string | null;
+          partner_time_unknown?: boolean | null;
+          partner_gender?: GenderKind | null;
+          partner_calendar?: CalendarKind | null;
           created_at?: string;
         };
         Update: Partial<SajuInputRow>;
@@ -193,6 +208,8 @@ export type Database = {
           astrolabe?: Json | null;       // 0005 마이그레이션
           full_analysis?: Json | null;   // 0006 마이그레이션
           today_fortune?: Json | null;   // 0009 마이그레이션
+          partner_full_analysis?: Json | null; // 0010 마이그레이션
+          partner_myeongsik?: Json | null;     // 0010 마이그레이션
           interpretation_md: string;
           llm_provider: string;
           llm_model: string;

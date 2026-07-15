@@ -24,7 +24,9 @@ export default async function ResultPage({
 
   const { data: result } = await service
     .from("saju_results")
-    .select("id, myeongsik, full_analysis, today_fortune, interpretation_md, llm_provider, llm_model, created_at, order_id")
+    .select(
+      "id, myeongsik, full_analysis, today_fortune, partner_myeongsik, partner_full_analysis, interpretation_md, llm_provider, llm_model, created_at, order_id",
+    )
     .eq("id", resultId)
     .maybeSingle();
 
@@ -59,6 +61,16 @@ export default async function ResultPage({
     view.pillars.day.jiji,
   );
 
+  // couple-match 상대방 명식 카드 — 2026-07-15 결함 수정. partner_myeongsik 없으면(구주문/
+  // 그 외 상품) 카드 자체를 렌더하지 않는다.
+  const partnerMyeongsik = result.partner_myeongsik as unknown as Myeongsik | null;
+  const partnerView = partnerMyeongsik
+    ? buildMyeongsikView(partnerMyeongsik, result.partner_full_analysis)
+    : null;
+  const partnerIljuAlias = partnerView
+    ? getIljuAlias(partnerView.pillars.day.cheongan, partnerView.pillars.day.jiji)
+    : undefined;
+
   return (
     <div className="container py-12 max-w-2xl">
       <header className="mb-10">
@@ -85,7 +97,7 @@ export default async function ResultPage({
           </div>
           <div>
             <p className="text-base font-semibold text-night-fg">
-              두리가 그대의 명식을 펼쳤어요 ✨
+              두리가 {partnerView ? "내" : "그대의"} 명식을 펼쳤어요 ✨
             </p>
             <p className="mt-1 text-sm text-night-fg-soft">
               {view.pillars.day.cheongan}
@@ -98,6 +110,20 @@ export default async function ResultPage({
           <DaeunSeunSlider view={view} />
         </div>
       </section>
+
+      {/* couple-match 상대방 명식 카드 — 2026-07-15 결함 수정. */}
+      {partnerView && (
+        <section className="mb-12">
+          <div className="mb-6">
+            <p className="text-base font-semibold text-night-fg">상대방 명식이에요</p>
+            <p className="mt-1 text-sm text-night-fg-soft">
+              {partnerView.pillars.day.cheongan}
+              {partnerView.pillars.day.jiji}일주{partnerIljuAlias ? ` · ${partnerIljuAlias}` : ""}
+            </p>
+          </div>
+          <MyeongsikTable view={partnerView} />
+        </section>
+      )}
 
       {/* 자미두수 명반 — 4개 상품(love-saju/couple-match/love-consulting/premium-saju)
           + 시 있음 일 때만 노출. 그 외(비-자미두수 5상품, 시 미상)는 섹션 자체 미렌더. */}

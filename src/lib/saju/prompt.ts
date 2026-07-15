@@ -6,6 +6,14 @@
 import type { Myeongsik } from "./manseryeok";
 import type { ZiweiSummary } from "./ziwei";
 
+/** couple-match 전용 — 상대방 명식 데이터. 없으면 buildSajuPrompt 가 throw(가짜 궁합 생성 차단). */
+export type PartnerInput = {
+  myeongsik: Myeongsik;
+  manseryeokText?: string;
+  gender: "male" | "female";
+  name?: string;
+};
+
 export type PromptInput = {
   productSlug: string;
   productName: string;
@@ -21,6 +29,9 @@ export type PromptInput = {
   // 자미두수 명반 — 4개 상품(love-saju, couple-match, love-consulting, premium-saju) +
   // 시 미상 아님 일 때만 채워짐. 없으면 자미두수 블록 미포함 (저가 상품/시 미상 영향 0).
   ziwei?: ZiweiSummary;
+  // couple-match 전용. 2026-07-15 결함 수정 — 상대방 데이터 없이 couple-match 생성은
+  // 어떤 경로로도 불가능해야 한다(폼 검증 + 서버 검증 + 이 프롬프트 게이트 3중).
+  partner?: PartnerInput;
 };
 
 // ─────────────────────────────────────────────────────
@@ -149,7 +160,7 @@ const STYLE_BY_SLUG: Record<string, { length: string; focus: string }> = {
   },
   "couple-match": {
     length: "700-900자",
-    focus: "커플 궁합 — 두 명식의 합충 비교(있다면 활용), 일간 상생상극, 십성 보완 관계로 본 관계 흐름과 갈등 포인트, 관계 발전 시기",
+    focus: "커플 궁합 — [본인 명식]과 [상대방 명식] 두 명식을 모두 반드시 활용해 일간 상생상극, 지지 합충 비교, 십성 보완 관계로 본 관계 흐름과 갈등 포인트, 관계 발전 시기를 짚는다",
   },
   "basic-saju": {
     length: "600-900자",
@@ -166,6 +177,16 @@ const STYLE_BY_SLUG: Record<string, { length: string; focus: string }> = {
 };
 
 export function buildSajuPrompt(input: PromptInput): { system: string; user: string } {
+  // couple-match 는 두 사람의 명식을 비교하는 상품 — 상대방 데이터 없이 생성하면
+  // 한 명 사주만으로 지어낸 "가짜 궁합"이 19,900원에 팔린다(2026-07-15 결함 수정).
+  // 조용히 폴백하지 않고 여기서 즉시 throw — 결제 후 실패가 관리자에게 보이는 편이
+  // 가짜 궁합 발행보다 낫다. 폼 검증 + orders/create 서버 검증과 함께 3중 방어.
+  if (input.productSlug === "couple-match" && !input.partner) {
+    throw new Error(
+      "couple-match 생성에는 상대방 데이터(partner)가 필수입니다 — 상대방 없이 궁합을 생성할 수 없습니다.",
+    );
+  }
+
   const today = new Date().toLocaleDateString("ko-KR", {
     timeZone: "Asia/Seoul",
     year: "numeric",
@@ -177,16 +198,34 @@ export function buildSajuPrompt(input: PromptInput): { system: string; user: str
   const pillar = (p: { cheongan: string; jiji: string } | null) =>
     p ? `${p.cheongan}${p.jiji}` : "(시 미상)";
 
-  // 풀 분석 텍스트가 있으면 그걸 우선 사용, 없으면 단순 4기둥
+  // 풀 분석 텍스트가 있으면 그걸 우선 사용, 없으면 단순 4기둥.
+  // partner 가 있을 때(couple-match)만 "본인/상대방"으로 라벨을 분리 — 다른 상품은 기존 라벨 유지.
+  const selfLabel = input.partner ? "본인 명식" : "사주 풀 명식";
+  const selfPillarLabel = input.partner ? "본인 명식 — 4기둥" : "사주 4기둥";
   const sajuSection = input.manseryeokText
-    ? `[사주 풀 명식]\n${input.manseryeokText}`
+    ? `[${selfLabel}]\n${input.manseryeokText}`
     : [
-        `[사주 4기둥]`,
+        `[${selfPillarLabel}]`,
         `- 년주: ${pillar(m.year)}`,
         `- 월주: ${pillar(m.month)}`,
         `- 일주: ${pillar(m.day)}`,
         `- 시주: ${pillar(m.hour)}`,
       ].join("\n");
+
+  // couple-match 상대방 명식 블록 — [본인 명식] 과 명확히 분리해 주입.
+  const partnerSection = input.partner
+    ? `\n\n${
+        input.partner.manseryeokText
+          ? `[상대방 명식]\n${input.partner.manseryeokText}`
+          : [
+              `[상대방 명식 — 4기둥]`,
+              `- 년주: ${pillar(input.partner.myeongsik.year)}`,
+              `- 월주: ${pillar(input.partner.myeongsik.month)}`,
+              `- 일주: ${pillar(input.partner.myeongsik.day)}`,
+              `- 시주: ${pillar(input.partner.myeongsik.hour)}`,
+            ].join("\n")
+      }\n[상대방 성별] ${input.partner.gender === "male" ? "남성" : "여성"}${input.partner.name ? `\n[상대방 이름] ${input.partner.name}` : ""}`
+    : "";
 
   // 자미두수 명반 블록 (있을 때만, 자미두수 4개 상품 + 시 미상 아닐 때만 채워짐)
   const ziweiSection = input.ziwei ? `\n\n${formatZiweiBlock(input.ziwei)}` : "";
@@ -203,7 +242,7 @@ export function buildSajuPrompt(input: PromptInput): { system: string; user: str
 [분량] 약 ${style.length}
 [핵심 포커스] ${style.focus}
 
-${sajuSection}${ziweiSection}
+${sajuSection}${ziweiSection}${partnerSection}
 
 [기본 정보]
 - 생년월일: ${input.birthDate}${input.timeUnknown ? " (시 미상)" : input.birthTime ? ` ${input.birthTime}` : ""}
@@ -214,7 +253,11 @@ ${sajuSection}${ziweiSection}
     input.manseryeokText
       ? " 천간지지/십성/대운/세운/신살 등 풀 명식 정보를 적극 활용하되, 단정적 표현은 피하고 가능성/경향으로 풀어 주세요."
       : ""
-  }${ziweiInstruction}`;
+  }${ziweiInstruction}${
+    input.partner
+      ? " [본인 명식]과 [상대방 명식]을 반드시 둘 다 인용해 궁합을 풀어주세요 — 한 사람 사주만으로 궁합을 짓지 마세요. 일간 상생상극, 지지 합충, 십성 보완 관계를 두 명식 교차로 짚어주세요."
+      : ""
+  }`;
 
   return { system: SYSTEM_BASE, user };
 }

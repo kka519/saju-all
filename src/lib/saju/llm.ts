@@ -27,7 +27,12 @@ export type LlmResponse = {
   model: string;
 };
 
-const DEFAULT_MAX_TOKENS = 2048;
+// Gemini 2.5 계열은 maxOutputTokens 예산을 내부 thinking에도 쓰기 때문에, 2048로는
+// 가시 출력(600~2000자대)이 중간에 잘려 JSON 파싱 실패/내용 절단이 실측 확인됨(2026-07-15).
+// 4096도 marginal(같은 프롬프트로도 성공/실패가 갈림) — 8192에서 couple-match 반복 테스트
+// 전부 안정적으로 완결. 단, love-consulting/premium-saju(1500~2000자 타깃)는 8192에서도
+// 절단 가능성이 남아 있어 추가 튜닝이 필요할 수 있음(별도 확인 필요).
+const DEFAULT_MAX_TOKENS = 8192;
 
 export async function generateInterpretation(req: LlmRequest): Promise<LlmResponse> {
   const env = serverEnv();
