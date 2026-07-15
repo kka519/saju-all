@@ -335,6 +335,18 @@ export type SeunItem = {
   twelveFortune?: TwelveFortuneItem;     // 시안 운성 라벨
   /** ViewModel 정규화 — currentSeun 1건만 true. */
   isCurrent?: boolean;
+  /** 종합 길흉 판정 — 커플 궁합 리포트의 세운 곡선(couple-seun-chart.ts)에서 사용.
+   *  기존 화면(daeunSeunSlider 등)은 이 필드를 쓰지 않아 이제까지 타입에 없었다. */
+  yongsinJudgment?: {
+    종합판정: string;   // "대길" | "소길" | "평" | "소흉" | "대흉" 등
+    종합점수: number;
+    천간판정?: string;
+    지지판정?: string;
+    용신오행?: string;
+    희신오행?: string;
+    기신오행?: string;
+    판정근거?: string;
+  };
 };
 
 export type Seun = {

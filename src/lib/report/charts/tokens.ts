@@ -10,6 +10,11 @@ export const RED = "#D64541"; // 상승
 export const BLUE = "#2E6DB4"; // 하락/주의
 export const GRAY = "#8A8FA0";
 
+// 커플 궁합 리포트 전용 — 본인=GOLD(기존 토큰 재사용), 상대=PARTNER_BLUE.
+// 기존 BLUE(#2E6DB4)는 "하락/주의" 의미로 이미 쓰이고 있어 인물 식별 색상과
+// 혼동되지 않도록 별도 토큰으로 분리(지시문_궁합PDF_비주얼3종_20260715.md §공통규칙).
+export const PARTNER_BLUE = "#7A8CC9";
+
 /** report-template.html의 @font-face 이름과 동일하게 맞춤 (SVG 텍스트가 PDF에서 동일 폰트로 렌더되도록). */
 export const CHART_FONT_FAMILY = "NotoKR, sans-serif";
 
