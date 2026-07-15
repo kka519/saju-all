@@ -5,9 +5,9 @@
 import Handlebars from "handlebars";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { getFontFaceCss } from "./font-face";
 
 let compiledTemplate: HandlebarsTemplateDelegate | null = null;
-let fontFaceCss: string | null = null;
 
 // 등호(===) 비교 헬퍼 — 신살 category 등 조건부 렌더에 사용.
 Handlebars.registerHelper("eq", (a: unknown, b: unknown) => a === b);
@@ -24,25 +24,6 @@ Handlebars.registerHelper("md", (text: unknown) => {
     .replace(/\n/g, "<br>");
   return new Handlebars.SafeString(html);
 });
-
-/**
- * 폰트 3종을 base64 data URI @font-face 로 임베드.
- * - 로컬 macOS 는 시스템 한글 폰트가 있어 없어도 보였지만, Vercel 서버리스 Chromium 은
- *   한글 폰트가 전혀 없어 미임베드 시 전부 깨짐(tofu) — 프로덕션 필수.
- * - 레퍼런스 PDF 의 명조체 헤드라인(NotoSerifKR)도 이 임베드로 재현.
- * 모듈 레벨 캐시 — 프로세스당 1회만 읽음.
- */
-function getFontFaceCss(): string {
-  if (fontFaceCss) return fontFaceCss;
-  const fontsDir = join(process.cwd(), "src/lib/report/template/fonts");
-  const load = (file: string) => readFileSync(join(fontsDir, file)).toString("base64");
-  fontFaceCss = `
-@font-face { font-family:'NotoKR'; src:url(data:font/otf;base64,${load("NotoSansKR-Regular.otf")}) format('opentype'); font-weight:normal; }
-@font-face { font-family:'NotoKR'; src:url(data:font/otf;base64,${load("NotoSansKR-Bold.otf")}) format('opentype'); font-weight:bold; }
-@font-face { font-family:'NotoSerifKR'; src:url(data:font/otf;base64,${load("NotoSerifKR-Bold.otf")}) format('opentype'); font-weight:bold; }
-`;
-  return fontFaceCss;
-}
 
 function getTemplate(): HandlebarsTemplateDelegate {
   if (compiledTemplate) return compiledTemplate;

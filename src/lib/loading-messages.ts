@@ -29,3 +29,16 @@ export const REPORT_STAGE_MESSAGES: Record<string, string> = {
   uploading: "거의 다 됐어요, 저장하는 중이에요...",
   done: "완성됐어요!",
 };
+
+// 커플 궁합 리포트(LUNA LIFE RESEARCH "합병 리서치") 진행 페이지 — 구매 동선에는
+// 두리가 등장하지 않는다는 원칙(기획_궁합리포트_합병리서치_20260715.md §1)에 따라
+// 위 REPORT_STAGE_MESSAGES 와 별도로 관리. 반말체·캐릭터 언급 없는 리서치 톤.
+export const COUPLE_REPORT_STAGE_MESSAGES: Record<string, string> = {
+  queued: "합병 실사 준비 중입니다...",
+  normalizing: "두 사람의 명식 데이터를 정리하는 중입니다...",
+  llm_parts: "20페이지 분량의 리서치 원고를 작성하는 중입니다... (가장 오래 걸리는 단계예요)",
+  rendering: "20페이지 리포트로 조판하는 중입니다...",
+  rendering_pdf: "PDF로 렌더링하는 중입니다...",
+  uploading: "거의 다 됐습니다, 저장하는 중입니다...",
+  done: "완성됐습니다!",
+};

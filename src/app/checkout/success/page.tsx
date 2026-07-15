@@ -41,6 +41,8 @@ function CheckoutSuccessInner() {
         if (!res.ok) throw new Error(json.error ?? "결제 승인 실패");
         if (json.reportId) {
           router.replace(`/reports/${json.reportId}/progress`);
+        } else if (json.coupleReportId) {
+          router.replace(`/couple-reports/${json.coupleReportId}/progress`);
         } else if (json.resultId) {
           router.replace(`/results/${json.resultId}`);
         } else {

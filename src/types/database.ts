@@ -127,6 +127,30 @@ type LifeAnalystReportRow = {
   updated_at: string;
 };
 
+// 0012 마이그레이션 — "커플 궁합 리포트"(20페이지 PDF). life_analyst_reports 와 동일
+// 계약(status/stage/progress_pct)이지만 파트가 5개(페이지맵 기준)라 별도 테이블.
+type CoupleReportRow = {
+  id: string;
+  order_id: string;
+  status: ReportStatus;
+  stage: string | null;
+  progress_pct: number;
+  report_json: Json | null;
+  sections_part1: Json | null;
+  sections_part2: Json | null;
+  sections_part3: Json | null;
+  sections_part4: Json | null;
+  sections_part5: Json | null;
+  pdf_path: string | null;
+  pdf_page_count: number | null;
+  attempt_count: number;
+  error_message: string | null;
+  llm_provider: string | null;
+  llm_model: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Database = {
   public: {
     Tables: {
@@ -271,6 +295,32 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<LifeAnalystReportRow>;
+        Relationships: [];
+      };
+      couple_reports: {
+        Row: CoupleReportRow;
+        Insert: {
+          id?: string;
+          order_id: string;
+          status?: ReportStatus;
+          stage?: string | null;
+          progress_pct?: number;
+          report_json?: Json | null;
+          sections_part1?: Json | null;
+          sections_part2?: Json | null;
+          sections_part3?: Json | null;
+          sections_part4?: Json | null;
+          sections_part5?: Json | null;
+          pdf_path?: string | null;
+          pdf_page_count?: number | null;
+          attempt_count?: number;
+          error_message?: string | null;
+          llm_provider?: string | null;
+          llm_model?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: Partial<CoupleReportRow>;
         Relationships: [];
       };
     };
