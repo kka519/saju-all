@@ -15,8 +15,30 @@ import type { CoupleRelationMatrix } from "./relation-matrix";
 import { formatRelationMatrixForPrompt } from "./relation-matrix";
 import type { CoupleSeunSeries } from "./couple-seun-data";
 import { formatCoupleSeunSeriesForPrompt } from "./couple-seun-data";
+import type { CoupleWolunHighlight } from "./couple-wolun-data";
+import { formatCoupleWolunHighlightForPrompt } from "./couple-wolun-data";
 import type { MyeongsikViewModel } from "@/lib/saju/build-myeongsik-view";
 import type { Oheng } from "@/lib/saju/derived";
+import {
+  computeCoupleTypeNames,
+  formatCoupleTypeNamesForPrompt,
+  PERSONA_TYPES,
+  PACE_TYPES,
+  CLOCK_TYPES,
+  type CoupleTypeNames,
+} from "./type-names";
+import {
+  judgeRelationshipType,
+  formatRelationshipTypeForPrompt,
+  computeCoupleHealMatrix,
+  formatCoupleHealMatrixForPrompt,
+  computeAttractionDevices,
+  formatAttractionDevicesForPrompt,
+  computeSpousePalaceDiagnoses,
+  formatSpousePalaceDiagnosesForPrompt,
+  RELATIONSHIP_TYPES,
+  type RelationshipType,
+} from "./section9";
 
 // ── 이름 처리(수정 5) ──────────────────────────────────
 export type CoupleNames = { selfLabel: string; partnerLabel: string };
@@ -50,12 +72,81 @@ export type CoupleContentPromptInput = {
   partnerManseryeokText: string;
   matrix: CoupleRelationMatrix;
   seunSeries: CoupleSeunSeries;
+  wolunHighlight: CoupleWolunHighlight;
 };
 
+// ── few-shot 고정(검수요청_궁합_fewshot샘플_20260715.md, 사장님 검수 통과) ──
+// "쪽집게 장치 5가지": 장면 특정·유형 네이밍·단정+검증 초대·숫자 박기·시간 특정 처방.
+// ⚠️ 이 3개 샘플의 이름(경아님/광훈님)·숫자(-107 등)·연도(2025년 등)는 검수 당시
+// 검증용으로 쓴 테스트 커플의 실제 값이 우연히 들어간 것일 뿐 — 절대 고정값이 아니다.
+// 실제 생성 시 반드시 이번 커플의 [세운 교차]/[관계 매트릭스]/[유형 판정] 블록에서
+// 그 커플 고유의 숫자·연도·이름으로 새로 도출해야 한다. 아래는 문체·구조·밀도 참고용.
+const FEW_SHOT_SAMPLES = `[샘플 1 — 갈등(리스크 공시/매뉴얼 계열)]
+싸운 다음 날 아침, 광훈님은 아무 일 없던 사람처럼 말을 겁니다. 경아님은 그 태연함에 한 번 더 상처받죠. 무심해서가 아닙니다 — 두 분의 회복 시계가 다를 뿐입니다. 광훈님은 반나절 시계, 경아님은 하루반 시계. 시계가 다른 두 사람이 같은 시각에 화해하려니 매번 어긋났던 겁니다. 이 관계에서 화해가 실패한 건 마음이 식어서가 아니라, 시각을 안 맞춘 회의였기 때문입니다.
+처방은 하나입니다. 화해는 싸움 후 36시간, 경아님의 시계에 맞추십시오. 그리고 그 36시간 동안 광훈님이 할 일은 설득이 아니라 평소대로 밥을 차리는 일입니다. 경아님의 명식은 말보다 일상이 복구될 때 마음이 풀리는 구조입니다.
+
+[샘플 2 — 속궁합(케미스트리 계열)]
+먼저 손을 내미는 쪽은 거의 광훈님일 겁니다. 문제는 방식이 아니라 타이밍입니다. 광훈님의 욕구는 스위치형 — 켜지면 바로 직진합니다. 경아님은 다이얼형 — 천천히 돌려야 올라갑니다. 그래서 두 분의 밤은 자주 어긋났을 겁니다. 광훈님이 다가온 밤, 경아님은 아직 낮을 벗지 못했고, 경아님이 돌아누운 것이 거절이 아니라 예열 중이라는 걸 광훈님은 몰랐습니다.
+스위치와 다이얼이 만나면 방법은 하나뿐입니다. 밤의 시작을 스킨십이 아니라 대화 10분으로 바꾸십시오. 경아님의 다이얼은 귀에서부터 돌아갑니다. 그리고 경아님 — 다이얼이 다 돌아간 밤에는 그 신호를 표현해도 좋습니다. 광훈님의 명식은 초대받을 때 가장 좋은 파트너가 되는 구조입니다.
+
+[샘플 3 — 백테스트(시기 계열)]
+2025년 을사년. 경아님, 이 해에 유독 지치지 않으셨습니까. 숫자로 말씀드리면 그해 경아님의 시황은 -107 — 7개년 중 최저점이었습니다. 그런데 같은 해 광훈님은 +29. 옆 사람은 멀쩡한데 나만 가라앉는 해였다는 뜻입니다. 그 시기에 "왜 내 힘듦을 몰라주지"라는 생각이 스쳤다면, 그건 광훈님이 무심해서가 아니라 두 분의 그래프가 반대 방향으로 움직인 해였기 때문입니다.
+이 엇갈림은 우연이 아니라 구조였고, 구조에는 끝나는 날짜가 있습니다. 2028년 무신년, 두 분의 곡선은 상장 이후 처음으로 같은 방향으로 오릅니다. 그때까지의 임무는 하나 — 서로의 저점을 알고 있다는 것만으로, 두 분은 이미 대부분의 커플보다 유리합니다.`;
+
+const FEW_SHOT_WARNING =
+  "위 3개 샘플은 문체·밀도·구조(장면 특정→적중→구조 재해석→시간 특정 처방→인용 한 줄)의 기준일 뿐이다. 이름·숫자·연도는 전부 예시用 — 절대 그대로 베끼지 말고, 이번 커플에게 실제로 주입된 데이터에서 새로 도출하라. " +
+  "샘플 길이(약 400~600자)를 실제 필드 길이로 착각하지 마라 — 각 필드의 정확한 글자수 범위는 아래 [출력 스키마]에 필드마다 따로 적혀 있으니 그 범위를 반드시, 정확히 지켜라(하한 미달도 상한 초과도 금지). 문단을 무한정 늘리지 말고, 스키마에 적힌 그 범위 안에서만 써라.";
+
+// ── 뻔한 처방 금지어(검수요청 ④) ─────────────────────────
+export const GENERIC_PRESCRIPTION_PHRASES = [
+  "대화를 자주",
+  "서로 이해",
+  "이해해 주세요",
+  "이해하려고 노력",
+  "소통을 늘리",
+  "많은 대화를",
+  "노력이 필요합니다",
+  "존중해 주세요",
+] as const;
+
+// ── 시간·행동 특정 처방 검출 정규식(검수요청 ③ "시간 특정 처방") ────────
+const TIME_SPECIFIC_PRESCRIPTION_RE = /\d+\s*(시간|분|일)\s*(후|안에|이내|먼저|동안)/;
+
 const COUPLE_SYSTEM_ADDENDUM = `
+[few-shot — 이 문체·구조를 따르되 이름·숫자·연도는 절대 베끼지 마라]
+${FEW_SHOT_SAMPLES}
+
+⚠️ ${FEW_SHOT_WARNING}
+
+[구조 게이트 — 리스크 공시·리스크 관리·백테스트·크라이시스 섹션에 적용]
+위 few-shot처럼 다음 순서로 써라: ①장면 특정(유형 설명이 아니라 구체적 행동 장면) →
+②적중("~하지 않으셨습니까"로 찌르기) → ③구조 재해석(그건 성격 결함이 아니라 명식
+구조 때문이라고 재해석) → ④시간·행동 특정 처방("36시간 후", "대화 10분 먼저"처럼
+숫자+시간단위+행동. "이해하세요"/"노력하세요" 같은 뻔한 말 금지) → ⑤인용 한 줄로 마무리.
+
+[뻔한 처방 금지어 — 절대 준수]
+"대화를 자주 하세요", "서로 이해하세요", "소통을 늘리세요" 같은 내용 없는 뻔한 조언을
+쓰지 마라. 반드시 시간·행동이 특정된 처방으로 바꿔라(예: "화해는 36시간 후", "대화
+10분 먼저").
+
 [상품 특화 — 커플 궁합 리포트 "COUPLE MERGER RESEARCH"]
 이 리포트는 두 사람(종목 A={{SELF}}, 종목 B={{PARTNER}})의 "합병 실사 보고서"다. 반드시
 두 명식을 모두 근거로 인용해 서술하라 — 한쪽만 분석하면 안 된다.
+
+[도입 훅 — execSummary 첫 문장 방향]
+"명식은 상장 시점에 정해진 포트폴리오, 합병 상대는 직접 고르는 유일한 대형 딜"이라는
+프레임을 execSummary 서두에 자연스럽게 녹여라(문장을 그대로 베끼지 말고 같은 취지로
+새로 써라) — 이 리포트가 왜 존재하는지에 대한 답이다.
+
+[관계 유형 태그 — execSummary 절대 준수]
+아래 [관계 유형 태그] 블록에 코드가 배정한 유형명을 execSummary에 등급과 함께 반드시
+표기하라. 배정되지 않은 다른 유형명을 쓰면 안 된다.
+
+[처방 행동 성별 중성화 — riskManagementSelf/riskManagementPartner 절대 준수]
+화해 처방으로 밥상·요리·커피 타주기 등 가사 노동을 특정 인물에게 배정하지 마라(성별
+고정관념 리뷰 리스크). 대신 아래 중성 예시 뱅크에서 골라 쓰거나 같은 결의 행동을 새로
+만들어라: 먼저 인사 건네기, 산책 제안하기, 상대가 좋아하는 것 챙겨주기, 평소 루틴 먼저
+복구하기, 짧은 메시지 먼저 보내기.
 
 [호칭 — 절대 준수]
 "본인"/"상대"/"상대방"이라는 말 대신 반드시 "{{SELF}}"/"{{PARTNER}}"로 지칭하라.
@@ -84,7 +175,9 @@ const COUPLE_SYSTEM_ADDENDUM = `
 [세운 점수 — 절대 준수]
 아래 [세운 교차] 블록의 연도·간지·점수만 언급하라. 블록에 없는 연도나 점수를
 새로 만들어내면 안 된다 — 언급하는 모든 연도-점수 쌍은 반드시 이 블록에서 그대로
-가져온 것이어야 한다.
+가져온 것이어야 한다. "2026~2027년(-58, -67)"처럼 여러 해를 묶어 점수를 괄호로
+나열하지 마라 — 어느 점수가 어느 해인지 모호해진다. 반드시 "2026년(-58)... 2027년
+(-67)..."처럼 연도마다 그 해의 점수를 바로 붙여 각각 따로 언급하라.
 
 [케미스트리 리포트 — chemistry 8블록]
 잠자리·밤·욕구·주도권을 정면으로 다루되(허용어: 잠자리, 밤, 욕구, 스킨십, 주도권,
@@ -97,7 +190,9 @@ const COUPLE_SYSTEM_ADDENDUM = `
 - chemistryPaceCurve: 예열-지속 곡선(빨리 타오르는 형 vs 늦게 데워지는 형)
 - chemistrySkinshipLanguage: 스킨십 반응 결의 차이
 - chemistrySignalDictionary: 서로 오해하는 신호 2~3개 번역+처방
-- chemistryTimingPreview: 향후 온도가 함께 오르는 시기 1개(라이트)
+- chemistryTimingPreview: 아래 [온도 타이밍] 블록에 코드가 찾아준 구간 1개만 언급(라이트).
+  "20XX년" 같은 세운 연도 표기 절대 금지 — 반드시 "약 N개월 후"류 상대 시점으로만 써라.
+  세운 연도·동반 상승 서사는 backtest·futureCalendar 전용이니 여기선 재사용하지 마라.
 
 [금지 목록 — 절대 준수]
 이혼·파경을 단정하는 표현("일부종사 어렵다" 류) 금지 — 위험 신호는 변동성으로만.
@@ -106,17 +201,26 @@ const COUPLE_SYSTEM_ADDENDUM = `
 균형"으로만 서술.
 `;
 
-export function buildCoupleContentPrompt(input: CoupleContentPromptInput): { system: string; user: string } {
+export function buildCoupleContentPrompt(
+  input: CoupleContentPromptInput,
+): { system: string; user: string; typeNames: CoupleTypeNames; relationshipType: RelationshipType } {
   const { names, matrix } = input;
   const addendum = COUPLE_SYSTEM_ADDENDUM
     .replaceAll("{{SELF}}", names.selfLabel)
     .replaceAll("{{PARTNER}}", names.partnerLabel);
   const system = ANALYST_SYSTEM_PROMPT + addendum;
 
+  const relationshipType = judgeRelationshipType(matrix);
+  const healMatrix = computeCoupleHealMatrix(matrix);
+  const attractionDevices = computeAttractionDevices(matrix);
+  const spousePalace = computeSpousePalaceDiagnoses(matrix);
+
   const ohaengBlock = [
     formatOhaengDistribution(matrix.selfView, names.selfLabel),
     formatOhaengDistribution(matrix.partnerView, names.partnerLabel),
   ].join("\n");
+
+  const typeNames = computeCoupleTypeNames(matrix.selfView, matrix.partnerView);
 
   const user = `[${names.selfLabel} 만세력]
 ${input.selfManseryeokText}
@@ -130,15 +234,32 @@ ${formatRelationMatrixForPrompt(matrix)}
 [오행 분포 — 이 문장을 그대로 인용, 직접 계산 금지]
 ${ohaengBlock}
 
+${formatCoupleTypeNamesForPrompt(typeNames, { self: names.selfLabel, partner: names.partnerLabel })}
+- 밤의 페르소나 유형명은 chemistryPersona에, 예열-지속 유형명은 chemistryPaceCurve에
+  반드시 등장시켜라. 회복 시계 유형명('반나절 시계'/'하루반 시계')은 riskDisclosure에
+  두 사람 것을 정확한 표기 그대로 최소 1회씩 반드시 등장시켜라(풀어쓰기·바꿔쓰기 금지)
+  — riskManagementSelf/riskManagementPartner에도 자연스럽게 이어 쓰면 더 좋다. 위 6개
+  유형명 목록에 없는 별명을 새로 만들지 마라.
+
+${formatRelationshipTypeForPrompt(relationshipType)}
+
+${formatCoupleHealMatrixForPrompt(healMatrix, { self: names.selfLabel, partner: names.partnerLabel })}
+
+${formatAttractionDevicesForPrompt(attractionDevices, { self: names.selfLabel, partner: names.partnerLabel })}
+
+${formatSpousePalaceDiagnosesForPrompt(spousePalace, { self: names.selfLabel, partner: names.partnerLabel })}
+
 ${formatCoupleSeunSeriesForPrompt(input.seunSeries)}
+
+${formatCoupleWolunHighlightForPrompt(input.wolunHighlight, { self: names.selfLabel, partner: names.partnerLabel })}
 
 [출력 스키마] 아래 JSON 키로만 응답하라(코드블록 마커 없이 순수 JSON 객체 하나):
 {
-  "execSummary": "관계를 한 문장으로 정의 + 총평 (400~550자)",
+  "execSummary": "도입 훅 + 관계를 한 문장으로 정의 + [관계 유형 태그] 표기 + 총평 (400~550자)",
   "selfSeenByPartner": "${names.partnerLabel}이 ${names.selfLabel}을 어떻게 경험하는가 — 십성 교차 근거 (400~550자)",
   "partnerSeenBySelf": "${names.selfLabel}이 ${names.partnerLabel}을 어떻게 경험하는가 — 십성 교차 근거 (400~550자)",
-  "attractionStructure": "왜 서로에게 끌렸는가 — 천간합·일간 상생상극 근거 (400~550자)",
-  "synergy": "성격·소통·라이프스타일이 잘 맞는 지점 (500~700자)",
+  "attractionStructure": "왜 서로에게 끌렸는가 — 천간합·일간 상생상극 근거 + [끌림의 숨은 장치] 반영 (400~550자)",
+  "synergy": "성격·소통·라이프스타일이 잘 맞는 지점 — [병-치유 매트릭스]를 중심 분석으로 (500~700자)",
   "riskDisclosure": "반복되는 다툼 패턴 — 충형파해·용신 교차 근거, 심리 저격형 문장 포함 (600~800자)",
   "riskManagementSelf": "${names.selfLabel}을 위한 화해 사용설명서 — 행동 단위 조언 (400~550자)",
   "riskManagementPartner": "${names.partnerLabel}을 위한 화해 사용설명서 — 행동 단위 조언 (400~550자)",
@@ -149,9 +270,9 @@ ${formatCoupleSeunSeriesForPrompt(input.seunSeries)}
   "chemistryPaceCurve": "예열-지속 곡선 (200~300자)",
   "chemistrySkinshipLanguage": "스킨십 언어 차이 (200~300자)",
   "chemistrySignalDictionary": "밤의 시그널 사전 — 오해 신호 2~3개 번역+처방 (300~450자)",
-  "chemistryTimingPreview": "온도 타이밍 예고(라이트) (150~250자)",
+  "chemistryTimingPreview": "온도 타이밍 예고(라이트) — [온도 타이밍] 블록 구간만, 연도 언급 금지 (150~250자)",
   "financialOutlook": "공동 재무 전망 — 돈 쓰는 스타일 궁합 (350~450자)",
-  "longTermFit": "장기 통합 적합성 — 결혼하면 어떤 부부인가, 배우자궁(일지) 교차 근거 (400~550자)",
+  "longTermFit": "장기 통합 적합성 — [배우자궁 자체 진단]을 먼저 언급한 뒤 결혼하면 어떤 부부인가, 배우자궁(일지) 교차 근거 (400~550자)",
   "backtest": "커플 백테스트 — 두 사람 대운·세운 교차로 본 과거 흐름, 적중 체감 톤(단정형) (400~550자)",
   "futureCalendar": "향후 3년 통합 캘린더 — 좋은 시기/주의 시기 (400~550자)",
   "crisisScenario": "위기 시나리오 — 헤어질 위험이 있다면 언제·왜·예방책 (400~550자)",
@@ -159,7 +280,7 @@ ${formatCoupleSeunSeriesForPrompt(input.seunSeries)}
   "finalOpinion": "최종 의견 — 총평, 담담한 격려로 마무리 (300~400자)"
 }`;
 
-  return { system, user };
+  return { system, user, typeNames, relationshipType };
 }
 
 export type CoupleSections = {
@@ -258,44 +379,172 @@ export function extractAndParseCoupleJSON(text: string): CoupleSections | null {
   return null;
 }
 
-// ── 세운 일치 게이트(수정 3) ────────────────────────────
-// 본문에 등장하는 "YYYY년" 근처의 부호 있는 숫자(+NN/-NN)가 코드 계산값과
-// 일치하는지 검사. 완전한 자연어 파싱은 아니지만, 코드가 준 적 없는 연도-점수
-// 조합이 나오면 반드시 걸러낸다(허구 수치 방지가 목적이라 과탐이 안전한 방향).
+// ── 세운 일치 게이트(수정 3, 지시문_궁합_v4검토수정_20260716.md §7-1로 재작성) ──
+// "연도 토큰 귀속 매칭" — 근접 윈도우(±N자) 대신, 텍스트를 순서대로 스캔하며 부호
+// 있는 점수(+NN/-NN)를 "가장 최근에 등장한 연도"에 귀속시킨다. 근접 윈도우는 "2029년
+// …+59…2027년의 긴장"처럼 다른 연도가 뒤이어 나오면 +59를 2027년 것으로 오판하는
+// 오탐이 있었다(2026-07-16 v4 검토 실측) — 순차 귀속은 이 문제가 구조적으로 없다.
 export function checkSeunConsistency(text: string, series: CoupleSeunSeries): string[] {
   const issues: string[] = [];
-  const yearPattern = /(\d{4})년/g;
+  const tokenPattern = /(\d{4})년|([+-]\d{1,3})(?!\d)/g;
+  let currentYear: number | null = null;
   let m: RegExpExecArray | null;
-  while ((m = yearPattern.exec(text)) !== null) {
-    const year = parseInt(m[1], 10);
-    if (!series.years.includes(year)) continue; // 리포트 대상 기간 밖 연도는 검사 제외(출생년 등)
-    const windowStart = Math.max(0, m.index - 40);
-    const windowEnd = Math.min(text.length, m.index + 60);
-    const window = text.slice(windowStart, windowEnd);
-    const scoreMatches = [...window.matchAll(/([+-]\d{1,3})(?!\d)/g)].map((mm) => parseInt(mm[1], 10));
-    if (scoreMatches.length === 0) continue;
-    const idx = series.years.indexOf(year);
+  while ((m = tokenPattern.exec(text)) !== null) {
+    if (m[1]) {
+      currentYear = parseInt(m[1], 10);
+      continue;
+    }
+    if (currentYear === null || !series.years.includes(currentYear)) continue;
+    const score = parseInt(m[2], 10);
+    const idx = series.years.indexOf(currentYear);
     const validScores = new Set([series.self[idx].score, series.partner[idx].score]);
-    for (const s of scoreMatches) {
-      if (!validScores.has(s)) {
-        issues.push(
-          `${year}년 근처에 언급된 점수 ${s >= 0 ? "+" : ""}${s}가 코드 계산값(본인 ${series.self[idx].score}/상대 ${series.partner[idx].score})과 불일치 — 세운 점수 창작 의심`,
-        );
-      }
+    if (!validScores.has(score)) {
+      issues.push(
+        `${currentYear}년 귀속 점수 ${score >= 0 ? "+" : ""}${score}가 코드 계산값(본인 ${series.self[idx].score}/상대 ${series.partner[idx].score})과 불일치 — 세운 점수 창작 의심`,
+      );
     }
   }
   return issues;
 }
 
-// ── 호칭 일치 게이트(수정 5) ────────────────────────────
+// ── 호칭 일치 게이트(수정 5, 지시문_궁합_v4검토수정_20260716.md §7-2로 완화) ──
 // 이름이 실제로 입력된 경우에만 검사한다 — 이름 미입력 폴백("본인"/"상대방") 자체는
 // 정상 동작이라 그 상태에서는 이 표현이 나와도 위반이 아니다.
+// "상대"/"본인"은 "상대의 반응", "본인이 원하는" 처럼 문장 속 지극히 정상적인
+// 한국어 대명사로도 널리 쓰인다 — 등장 자체를 위반으로 보면 오탐이 압도적으로
+// 많다(2026-07-16 v4 검토 실측: 실제 이름 153회 vs 일반 지칭 12회인데도 위반
+// 보고됨). 그래서 "이름을 실제로 안 쓰고 본인/상대방으로 때웠는가"라는 원래 취지에
+// 맞게, 일반 지칭 횟수가 실제 이름 호칭 횟수보다 많을 때만(=이름 회피로 볼 근거가
+// 있을 때만) 위반으로 본다. "OO님 본인은"처럼 이름 뒤에 재귀적으로 붙는 경우는
+// 애초에 집계에서 제외한다.
 export function checkNameUsage(text: string, names: CoupleNames): string[] {
   const usingFallback = names.selfLabel === "본인" && names.partnerLabel === "상대방";
   if (usingFallback) return [];
+  const countOf = (needle: string) => text.split(needle).length - 1;
+  const nameCount = countOf(names.selfLabel) + countOf(names.partnerLabel);
+  const stripped = text.replace(/님\s?(본인|상대)/g, "님");
+  const genericCount = (stripped.match(/상대방|상대는|상대가|상대를|본인은|본인이|본인을/g) ?? []).length;
+  if (nameCount === 0) {
+    return [`실제 이름("OO님")이 본문에 전혀 등장하지 않음 — 이름 대신 본인/상대방으로만 지칭한 것으로 의심`];
+  }
+  if (genericCount > nameCount) {
+    return [
+      `"본인/상대방" 류 일반 지칭(${genericCount}회)이 실제 이름 호칭(${nameCount}회)보다 많음 — 이름을 더 적극적으로 사용해야 함`,
+    ];
+  }
+  return [];
+}
+
+// ── few-shot 복사 방지 게이트(검수요청 — 오늘의 운세와 동일 30자 방식) ──────
+function findCopiedSubstring(generated: string, reference: string, minLen = 30): string | null {
+  if (generated.length < minLen) return null;
+  for (let i = 0; i <= generated.length - minLen; i++) {
+    const chunk = generated.slice(i, i + minLen);
+    if (reference.includes(chunk)) return chunk;
+  }
+  return null;
+}
+
+export function checkFewShotCopy(proseText: string): string[] {
+  const copied = findCopiedSubstring(proseText, FEW_SHOT_SAMPLES);
+  if (!copied) return [];
+  return [`few-shot 샘플과 30자 이상 그대로 겹친다("${copied}") — 문체·구조만 참고하고 내용은 이 커플 고유로 새로 써라`];
+}
+
+// ── 뻔한 처방 금지어 게이트(검수요청 ④) ────────────────────
+export function checkGenericPrescriptionPhrases(proseText: string): string[] {
   const issues: string[] = [];
-  if (/상대방|상대는|상대가|상대를|본인은|본인이|본인을/.test(text)) {
-    issues.push(`"본인/상대방" 류 표현 등장 — 실제 이름 호칭("OO님")을 사용해야 함`);
+  for (const phrase of GENERIC_PRESCRIPTION_PHRASES) {
+    if (proseText.includes(phrase)) {
+      issues.push(`뻔한 처방 문구 "${phrase}" 등장 — 시간·행동이 특정된 처방으로 바꿔라(예: "화해는 36시간 후")`);
+    }
+  }
+  return issues;
+}
+
+// ── 시간 특정 처방 게이트(검수요청 ③ "시간 특정 처방") ──────────
+// 화해 매뉴얼 2개 필드 중 최소 1곳엔 "N시간/분/일 후·안에·먼저" 패턴이 있어야 한다.
+export function checkTimeSpecificPrescription(sections: CoupleSections): string[] {
+  const combined = `${sections.riskManagementSelf}\n${sections.riskManagementPartner}`;
+  if (!TIME_SPECIFIC_PRESCRIPTION_RE.test(combined)) {
+    return [
+      `riskManagementSelf/riskManagementPartner 어디에도 시간 특정 처방("36시간 후" 류)이 없다 — 최소 1곳에 숫자+시간단위+행동 처방을 넣어라`,
+    ];
+  }
+  return [];
+}
+
+// ── 유형명 오배정 게이트(검수요청 ②) ────────────────────────
+// LLM은 코드가 배정한 유형명만 써야 한다 — 배정 안 된 다른 유형명이 같은 축 필드에
+// 등장하면 임의로 다른 유형을 지어낸 것으로 본다.
+export function checkTypeNameUsage(sections: CoupleSections, typeNames: CoupleTypeNames): string[] {
+  const issues: string[] = [];
+  const checkAxis = (
+    fieldText: string,
+    fieldName: string,
+    allNames: readonly string[],
+    assigned: readonly string[],
+  ) => {
+    for (const name of allNames) {
+      if (assigned.includes(name)) continue;
+      if (fieldText.includes(name)) {
+        issues.push(`${fieldName}에 배정되지 않은 유형명 "${name}" 등장 — 코드가 배정한 유형명만 사용해야 함`);
+      }
+    }
+    for (const name of assigned) {
+      if (!fieldText.includes(name)) {
+        issues.push(`${fieldName}에 배정된 유형명 "${name}"이 등장하지 않음 — 반드시 포함해야 함`);
+      }
+    }
+  };
+  checkAxis(sections.chemistryPersona, "chemistryPersona", PERSONA_TYPES, [
+    typeNames.self.persona,
+    typeNames.partner.persona,
+  ]);
+  checkAxis(sections.chemistryPaceCurve, "chemistryPaceCurve", PACE_TYPES, [
+    typeNames.self.pace,
+    typeNames.partner.pace,
+  ]);
+  const clockText = `${sections.riskDisclosure}\n${sections.riskManagementSelf}\n${sections.riskManagementPartner}`;
+  checkAxis(clockText, "riskDisclosure/riskManagementSelf/riskManagementPartner", CLOCK_TYPES, [
+    typeNames.self.clock,
+    typeNames.partner.clock,
+  ]);
+  return issues;
+}
+
+// ── 관계 유형 태그 오배정 게이트(§9-4) ──────────────────────
+export function checkRelationshipTypeUsage(execSummary: string, relationshipType: RelationshipType): string[] {
+  const issues: string[] = [];
+  for (const t of RELATIONSHIP_TYPES) {
+    if (t === relationshipType) continue;
+    if (execSummary.includes(t)) {
+      issues.push(`execSummary에 배정되지 않은 관계 유형 태그 "${t}" 등장 — 코드가 배정한 유형명만 사용해야 함`);
+    }
+  }
+  if (!execSummary.includes(relationshipType)) {
+    issues.push(`execSummary에 배정된 관계 유형 태그 "${relationshipType}"이 등장하지 않음 — 반드시 포함해야 함`);
+  }
+  return issues;
+}
+
+// ── 온도 타이밍 세운연도 금지 게이트(지시문_궁합_v4검토수정_20260716.md §2) ────
+export function checkTimingPreviewNoSeunYear(chemistryTimingPreview: string): string[] {
+  if (/\d{4}년/.test(chemistryTimingPreview)) {
+    return [`chemistryTimingPreview에 세운 연도("20XX년") 표기 등장 — 월운 기반 상대 시점("약 N개월 후")으로만 써야 함`];
+  }
+  return [];
+}
+
+// ── 처방 행동 성별 중성화 게이트(지시문_궁합_v4검토수정_20260716.md §5) ────────
+const GENDERED_CHORE_PHRASES = ["밥상", "커피를 타", "요리해", "설거지", "빨래", "청소해"] as const;
+export function checkGenderNeutralPrescription(sections: CoupleSections): string[] {
+  const combined = `${sections.riskManagementSelf}\n${sections.riskManagementPartner}`;
+  const issues: string[] = [];
+  for (const phrase of GENDERED_CHORE_PHRASES) {
+    if (combined.includes(phrase)) {
+      issues.push(`riskManagementSelf/riskManagementPartner에 가사 행동 처방 "${phrase}" 등장 — 특정 인물에게 가사 노동을 배정하지 말고 중성 예시 뱅크로 바꿔라`);
+    }
   }
   return issues;
 }
@@ -305,6 +554,8 @@ export function validateCoupleSections(
   matrix: CoupleRelationMatrix,
   seunSeries: CoupleSeunSeries,
   names: CoupleNames,
+  typeNames: CoupleTypeNames,
+  relationshipType: RelationshipType,
 ): string[] {
   const proseText = SECTION_KEYS.map((k) => sections[k]).join("\n");
   const issues: string[] = [
@@ -312,6 +563,13 @@ export function validateCoupleSections(
     ...checkMinLengths(sections, COUPLE_FIELD_RANGES),
     ...checkSeunConsistency(proseText, seunSeries),
     ...checkNameUsage(proseText, names),
+    ...checkFewShotCopy(proseText),
+    ...checkGenericPrescriptionPhrases(proseText),
+    ...checkTimeSpecificPrescription(sections),
+    ...checkTypeNameUsage(sections, typeNames),
+    ...checkRelationshipTypeUsage(sections.execSummary, relationshipType),
+    ...checkTimingPreviewNoSeunYear(sections.chemistryTimingPreview),
+    ...checkGenderNeutralPrescription(sections),
   ];
   // 상대 일간 인용 게이트(§5.3) — 가짜 궁합 2차 방어. 두 일간 한글자가 모두 등장해야 함.
   const selfGan = matrix.selfView.pillars.day.cheongan;

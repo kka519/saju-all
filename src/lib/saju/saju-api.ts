@@ -186,7 +186,7 @@ export function formatSajuToManseryeok(
 
   const sections = order
     .map(({ key, label }) => {
-      const value = analysis[key];
+      const value = key === "hwagae" ? stripHwagaeType(analysis[key]) : analysis[key];
       if (value == null) return null;
       return `[${label}]\n${stringifyValue(value)}`;
     })
@@ -240,6 +240,27 @@ function sleep(ms: number): Promise<void> {
 function pad2(v: string | number): string {
   const s = String(v);
   return s.length >= 2 ? s : `0${s}`;
+}
+
+// luckyloveme 원본 hwagae[].type 필드는 "진토화개"처럼 지지+오행 표기와 살 이름을
+// 공백 없이 이어붙여 내려온다(2026-07-16 실측) — LLM이 이 압축 표기를 프롬프트에서
+// 그대로 베껴 쓰면 term-guard 치환(화개→예술적 감수성) 후 "진토예술적 감수성" 같은
+// 구분자 없는 합성어가 남는다. name/position/ji/meaning 만으로 뜻이 충분하므로
+// LLM에게 보여주는 텍스트에서는 이 필드를 제거한다(표·차트 등 다른 경로는 영향 없음).
+function stripTypeField(item: unknown): unknown {
+  if (!item || typeof item !== "object" || !("type" in item)) return item;
+  const { type: _type, ...rest } = item as Record<string, unknown>;
+  return rest;
+}
+
+function stripHwagaeType(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(stripTypeField);
+  // 실측 응답 형태: { hwagae: [ {position, ji, name, type, meaning}, ... ] }
+  if (value && typeof value === "object" && Array.isArray((value as Record<string, unknown>).hwagae)) {
+    const v = value as Record<string, unknown>;
+    return { ...v, hwagae: (v.hwagae as unknown[]).map(stripTypeField) };
+  }
+  return value;
 }
 
 function stringifyValue(v: unknown, indent = ""): string {

@@ -17,7 +17,7 @@ import {
 
 export const PILLAR_KEYS = ["year", "month", "day", "hour"] as const;
 export type PillarKey = (typeof PILLAR_KEYS)[number];
-const PILLAR_LABEL: Record<PillarKey, string> = { year: "년주", month: "월주", day: "일주", hour: "시주" };
+export const PILLAR_LABEL: Record<PillarKey, string> = { year: "년주", month: "월주", day: "일주", hour: "시주" };
 
 export type PillarCrossRelation = {
   selfPillarKey: PillarKey;

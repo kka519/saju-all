@@ -31,7 +31,7 @@ export type CoupleGenerateResult = {
 export async function generateCoupleContentWithRetry(
   input: CoupleContentPromptInput,
 ): Promise<CoupleGenerateResult> {
-  const { system, user } = buildCoupleContentPrompt(input);
+  const { system, user, typeNames, relationshipType } = buildCoupleContentPrompt(input);
 
   let lastIssues: string[] = [];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -55,7 +55,7 @@ export async function generateCoupleContentWithRetry(
     }
 
     const { sections: sanitized, replaced } = sanitizeCoupleSections(parsed);
-    const issues = validateCoupleSections(sanitized, input.matrix, input.seunSeries, input.names);
+    const issues = validateCoupleSections(sanitized, input.matrix, input.seunSeries, input.names, typeNames, relationshipType);
 
     // 용어 위반은 sanitize로 이미 교정됐으니 재검사에서 제외 — 세운/호칭/일간인용/분량만
     // 남은 위반이면 재시도, 그마저 다 없으면 통과.
