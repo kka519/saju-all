@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -12,7 +11,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { publicEnv } from "@/lib/env";
 
 export default function SignupPage() {
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -36,8 +34,10 @@ export default function SignupPage() {
       return;
     }
     toast.success("가입 완료! 마이페이지로 이동합니다.");
-    router.push("/mypage");
-    router.refresh();
+    // router.push+refresh는 signUp()이 쓴 세션 쿠키가 아직 커밋되기 전에
+    // /mypage 서버 컴포넌트가 먼저 읽어 /login으로 튕기는 레이스가 있었다.
+    // 하드 네비게이션은 새 요청이라 쿠키를 확실히 반영해서 읽는다.
+    window.location.href = "/mypage";
   }
 
   return (

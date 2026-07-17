@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -19,7 +19,6 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const router = useRouter();
   const search = useSearchParams();
   const redirectTo = search.get("redirect") ?? "/mypage";
   const [email, setEmail] = useState("");
@@ -37,8 +36,10 @@ function LoginForm() {
       return;
     }
     toast.success("로그인되었습니다");
-    router.push(redirectTo);
-    router.refresh();
+    // router.push+refresh는 signIn()이 쓴 세션 쿠키가 아직 커밋되기 전에
+    // 대상 페이지 서버 컴포넌트가 먼저 읽어 /login으로 다시 튕기는 레이스가
+    // 있다(회원가입 페이지와 동일 원인). 하드 네비게이션으로 확실히 반영.
+    window.location.href = redirectTo;
   }
 
   return (
