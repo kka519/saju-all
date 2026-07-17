@@ -22,7 +22,7 @@ type ApiSuccess = { ok: true; fortune: string; meta?: { provider: string; model:
 type ApiError = { ok: false; stage: string; error: string; detail?: unknown };
 type ApiResponse = ApiSuccess | ApiError;
 
-type State = "checking" | "loading" | "success" | "error";
+type State = "checking" | "loading" | "success" | "error" | "rate-limited";
 
 function isReady(d: OnboardingData): boolean {
   return !!(
@@ -93,6 +93,10 @@ export default function PreviewPage() {
       .then(async (res) => {
         const json: ApiResponse = await res.json();
         if (!json.ok) {
+          if (json.stage === "rate-limited") {
+            setState("rate-limited");
+            return;
+          }
           setErrorMsg(json.error || "알 수 없는 오류가 났어요.");
           setState("error");
           return;
@@ -177,6 +181,31 @@ export default function PreviewPage() {
         >
           다시 시도
         </button>
+      </div>
+    );
+  }
+
+  if (state === "rate-limited") {
+    return (
+      <div className="w-full space-y-8">
+        <Image
+          src="/characters/doori/doori-magic-solid.png"
+          alt="두리"
+          width={200}
+          height={200}
+          className="mx-auto rounded-full ring-1 ring-starlight/30"
+        />
+        <p className="text-base font-semibold text-night-fg">
+          오늘의 무료 운세는 이미 받으셨어요.
+          <br />내일 다시 만나요 🌙
+        </p>
+        <p className="text-sm text-night-fg-soft">더 깊은 풀이가 궁금하다면 유료 상품도 만나보세요.</p>
+        <Link
+          href="/products"
+          className="block w-full h-12 rounded-full bg-starlight text-night-primary text-base font-medium leading-[3rem] hover:bg-starlight-soft transition-colors"
+        >
+          상품 보러 가기
+        </Link>
       </div>
     );
   }

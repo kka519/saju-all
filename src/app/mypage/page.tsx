@@ -16,6 +16,7 @@ export default async function MyPage() {
     .maybeSingle();
 
   const items = [
+    { href: "/free-fortune", label: "오늘의 무료 운세" },
     { href: "/mypage/orders", label: "결제 내역 / 결과지" },
     { href: "/mypage/reviews", label: "내 후기" },
   ];

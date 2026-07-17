@@ -20,6 +20,13 @@ type ProfileRow = {
   display_name: string | null;
   phone: string | null;
   is_admin: boolean;
+  // 0013 마이그레이션 — 로그인 사용자의 "내 생년월일" 저장(무료 운세 재입력 방지).
+  birth_date: string | null;
+  birth_time: string | null;
+  time_unknown: boolean;
+  gender: GenderKind | null;
+  calendar: CalendarKind | null;
+  is_leap_month: boolean;
   created_at: string;
 };
 
@@ -127,6 +134,15 @@ type LifeAnalystReportRow = {
   updated_at: string;
 };
 
+// 0013 마이그레이션 — 무료 운세 하루 1회 제한 사용 기록.
+type FreeFortuneUsageRow = {
+  id: string;
+  day: string;
+  identity_key: string;
+  ip: string | null;
+  created_at: string;
+};
+
 // 0012 마이그레이션 — "커플 궁합 리포트"(20페이지 PDF). life_analyst_reports 와 동일
 // 계약(status/stage/progress_pct)이지만 파트가 5개(페이지맵 기준)라 별도 테이블.
 type CoupleReportRow = {
@@ -162,6 +178,12 @@ export type Database = {
           display_name?: string | null;
           phone?: string | null;
           is_admin?: boolean;
+          birth_date?: string | null;
+          birth_time?: string | null;
+          time_unknown?: boolean;
+          gender?: GenderKind | null;
+          calendar?: CalendarKind | null;
+          is_leap_month?: boolean;
           created_at?: string;
         };
         Update: Partial<ProfileRow>;
@@ -321,6 +343,18 @@ export type Database = {
           updated_at?: string;
         };
         Update: Partial<CoupleReportRow>;
+        Relationships: [];
+      };
+      free_fortune_usage: {
+        Row: FreeFortuneUsageRow;
+        Insert: {
+          id?: string;
+          day: string;
+          identity_key: string;
+          ip?: string | null;
+          created_at?: string;
+        };
+        Update: Partial<FreeFortuneUsageRow>;
         Relationships: [];
       };
     };

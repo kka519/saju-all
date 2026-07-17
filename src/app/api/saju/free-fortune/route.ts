@@ -1,10 +1,17 @@
 // =====================================================
 // POST /api/saju/free-fortune
 // =====================================================
-// 회원가입 퍼널 화면 6 — 무료 운세 미리보기.
-// 호기심 자극 톤 한 문단 (5~7문장) 마크다운 텍스트 반환.
-// SYSTEM_BASE는 그대로 (두리 톤) + user 프롬프트에 호기심 자극 instruction append.
+// 회원가입 퍼널 화면 6 — 무료 운세 미리보기(비로그인) + 로그인 사용자의 "오늘의
+// 무료 운세" 매일 진입점(지시문_무료운세일일제한_20260717.md) 공용 엔드포인트.
+// 호기심 자극 톤 한 문단(5~7문장) 마크다운 텍스트 반환.
+// SYSTEM_BASE는 그대로(두리 톤) + user 프롬프트에 호기심 자극 instruction append.
 // buildSajuPrompt(5섹션 JSON 강제)는 사용하지 않음 — 무료 미리보기엔 한 문단 텍스트가 적합.
+//
+// 하루 1회 제한(①③): 로그인은 계정, 비로그인은 쿠키(ffid) 기준 1일 1회 + IP 기준
+// 1일 5회 상한을 병행 — 둘 중 하나만 걸려도 동일한 안내 문구로 차단한다(어느 쪽
+// 한도인지 고객에게 구분해서 알리지 않음, 우회 힌트 방지).
+// 저장된 생년월일 재사용(②): 로그인 사용자가 birthInfo를 함께 보내면 profiles에
+// 저장하고, 다음부터는 birthInfo 생략 시 저장된 값을 자동으로 쓴다.
 
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
@@ -13,9 +20,18 @@ import {
   formatSajuToManseryeok,
   isSajuApiConfigured,
   SajuApiError,
+  type BirthInfo,
 } from "@/lib/saju/saju-api";
 import { SYSTEM_BASE } from "@/lib/saju/prompt";
 import { generateInterpretation } from "@/lib/saju/llm";
+import { getCurrentUser } from "@/lib/auth";
+import { createServiceClient } from "@/lib/supabase/server";
+import {
+  getOrCreateFortuneCookieId,
+  getClientIp,
+  checkFreeFortuneLimit,
+  recordFreeFortuneUsage,
+} from "@/lib/free-fortune-limit";
 
 const birthInfoSchema = z.object({
   birthYear: z.string().regex(/^\d{4}$/),
@@ -29,8 +45,9 @@ const birthInfoSchema = z.object({
 });
 
 const bodySchema = z.object({
-  birthInfo: birthInfoSchema,
-  concerns: z.array(z.string()).min(1, "관심사를 1개 이상 선택해 주세요"),
+  // 로그인 사용자가 저장된 생년월일을 재사용할 때는 생략 가능 — 이 경우 profiles에서 읽는다.
+  birthInfo: birthInfoSchema.optional(),
+  concerns: z.array(z.string()).optional().default([]),
   name: z.string().optional(),
 });
 
@@ -52,6 +69,29 @@ const FREE_FORTUNE_INSTRUCTION = `
 - 결제·가입 유도 문구는 절대 넣지 마세요 (CTA는 별도 UI에서 처리).
 - JSON 출력 X. 마크다운 코드블록(\`\`\`) X. 단일 한국어 마크다운 문단만 반환.`;
 
+const RATE_LIMIT_MESSAGE = "오늘의 무료 운세는 이미 받으셨어요. 내일 다시 만나요 🌙 더 깊은 풀이가 궁금하다면 유료 상품도 만나보세요.";
+
+function profileToBirthInfo(profile: {
+  birth_date: string;
+  birth_time: string | null;
+  time_unknown: boolean;
+  gender: "male" | "female";
+  calendar: "solar" | "lunar";
+  is_leap_month: boolean;
+}): BirthInfo {
+  const [birthYear, birthMonth, birthDay] = profile.birth_date.split("-");
+  const [birthHour, birthMinute] = profile.time_unknown ? [undefined, undefined] : (profile.birth_time ?? "").split(":");
+  return {
+    birthYear: birthYear!,
+    birthMonth: String(Number(birthMonth)),
+    birthDay: String(Number(birthDay)),
+    ...(profile.time_unknown ? {} : { birthHour, birthMinute }),
+    calendarType: profile.calendar === "lunar" ? "음력" : "양력",
+    gender: profile.gender,
+    isLeapMonth: profile.is_leap_month,
+  };
+}
+
 export async function POST(req: NextRequest) {
   const parsed = bodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
@@ -66,7 +106,75 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const { birthInfo, concerns, name } = parsed.data;
+  const currentUser = await getCurrentUser();
+  const identityKey = currentUser ? `user:${currentUser.id}` : `cookie:${await getOrCreateFortuneCookieId()}`;
+  const ip = getClientIp(req.headers);
+
+  const { allowed } = await checkFreeFortuneLimit({ identityKey, ip });
+  if (!allowed) {
+    return NextResponse.json(
+      { ok: false as const, stage: "rate-limited" as const, error: RATE_LIMIT_MESSAGE },
+      { status: 429 },
+    );
+  }
+
+  let { birthInfo, name } = parsed.data;
+  const { concerns } = parsed.data;
+  const service = createServiceClient();
+
+  if (currentUser) {
+    if (birthInfo) {
+      // 로그인 사용자가 생년월일을 함께 보냄 — 다음부터 재사용하도록 저장(②).
+      await service
+        .from("profiles")
+        .update({
+          birth_date: `${birthInfo.birthYear}-${birthInfo.birthMonth.padStart(2, "0")}-${birthInfo.birthDay.padStart(2, "0")}`,
+          birth_time: birthInfo.birthHour ? `${birthInfo.birthHour.padStart(2, "0")}:${(birthInfo.birthMinute ?? "0").padStart(2, "0")}` : null,
+          time_unknown: !birthInfo.birthHour,
+          gender: birthInfo.gender,
+          calendar: birthInfo.calendarType === "음력" ? "lunar" : "solar",
+          is_leap_month: birthInfo.isLeapMonth ?? false,
+        })
+        .eq("id", currentUser.id);
+    } else {
+      // birthInfo 생략 — 저장된 값을 읽어 재사용.
+      const { data: profile } = await service
+        .from("profiles")
+        .select("birth_date, birth_time, time_unknown, gender, calendar, is_leap_month, display_name")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+      if (!profile?.birth_date || !profile.gender || !profile.calendar) {
+        return NextResponse.json(
+          {
+            ok: false as const,
+            stage: "no-saved-birth-info" as const,
+            error: "저장된 생년월일이 없어요. 처음 한 번만 입력해 주시면 다음부터는 바로 받아보실 수 있어요.",
+          },
+          { status: 400 },
+        );
+      }
+      birthInfo = profileToBirthInfo({
+        birth_date: profile.birth_date,
+        birth_time: profile.birth_time,
+        time_unknown: profile.time_unknown,
+        gender: profile.gender,
+        calendar: profile.calendar,
+        is_leap_month: profile.is_leap_month,
+      });
+      name = name ?? profile.display_name ?? undefined;
+    }
+  }
+
+  if (!birthInfo) {
+    return NextResponse.json(
+      {
+        ok: false as const,
+        stage: "validation-error" as const,
+        error: "생년월일을 입력해 주세요.",
+      },
+      { status: 400 },
+    );
+  }
 
   if (!isSajuApiConfigured()) {
     return NextResponse.json(
@@ -101,7 +209,7 @@ export async function POST(req: NextRequest) {
   const user =
     `[기본 정보]\n` +
     (name ? `사용자: ${name}님\n` : "") +
-    `관심사: ${concerns.join(", ")}\n\n` +
+    (concerns.length > 0 ? `관심사: ${concerns.join(", ")}\n\n` : "\n") +
     `[명식]\n${manseryeokText}` +
     FREE_FORTUNE_INSTRUCTION;
 
@@ -109,6 +217,7 @@ export async function POST(req: NextRequest) {
     const llm = await generateInterpretation({ system: SYSTEM_BASE, user });
     // 가끔 모델이 코드블록으로 감싸는 경우 안전하게 제거
     const fortune = stripCodeFence(llm.text).trim();
+    await recordFreeFortuneUsage({ identityKey, ip });
     return NextResponse.json({
       ok: true as const,
       fortune,
