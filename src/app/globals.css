@@ -75,25 +75,28 @@
   }
 }
 
-/* Markdown result body — flat type scale, body neutral on white. */
+/* Markdown result body — flat type scale. 법적 페이지 3종(이용약관·개인정보처리방침·
+   환불정책)에서만 쓰이며 모두 어두운 밤하늘 배경 위라, 라이트 톤이 아니라
+   night-fg 계열로 맞춘다(2026-07-17 저대비 버그 수정 — 이전엔 text-foreground(검정)·
+   #525252(중간 회색)라 어두운 배경에서 거의 안 보였다). */
 @layer components {
   .prose-saju h2 {
-    @apply mt-10 mb-3 text-2xl font-semibold text-foreground;
+    @apply mt-10 mb-3 text-2xl font-semibold text-night-fg;
   }
   .prose-saju h3 {
-    @apply mt-6 mb-2 text-lg font-semibold text-foreground;
+    @apply mt-6 mb-2 text-lg font-semibold text-night-fg;
   }
   .prose-saju p {
-    @apply my-3 leading-7 text-[#525252];
+    @apply my-3 leading-7 text-night-fg-soft;
   }
   .prose-saju ul {
-    @apply my-3 list-disc space-y-1 pl-6 text-[#525252];
+    @apply my-3 list-disc space-y-1 pl-6 text-night-fg-soft;
   }
   .prose-saju strong {
-    @apply font-semibold text-foreground;
+    @apply font-semibold text-night-fg;
   }
   .prose-saju code {
-    @apply rounded-md bg-[#fafafa] px-1.5 py-0.5 text-sm;
+    @apply rounded-md bg-night-border px-1.5 py-0.5 text-sm text-night-fg;
   }
 }
 
