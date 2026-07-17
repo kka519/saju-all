@@ -110,7 +110,7 @@ const MAX_TRANSLATE_FIRST_OCCURRENCES = 3;
 
 /** 완성형 한글 음절의 종성(받침) 유무. 한글 완성형이 아니면(숫자·영문 등) 보수적으로
  *  받침 있음으로 간주해 "이/은/을" 계열을 유지한다. */
-function hasBatchim(text: string): boolean {
+export function hasBatchim(text: string): boolean {
   const ch = text.trimEnd().slice(-1);
   const code = ch.charCodeAt(0);
   if (code < 0xac00 || code > 0xd7a3) return true;

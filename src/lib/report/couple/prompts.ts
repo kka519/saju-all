@@ -258,12 +258,12 @@ ${formatCoupleWolunHighlightForPrompt(input.wolunHighlight, { self: names.selfLa
 
 [출력 스키마] 아래 JSON 키로만 응답하라(코드블록 마커 없이 순수 JSON 객체 하나):
 {
-  "execSummary": "도입 훅 + 관계를 한 문장으로 정의 + [관계 유형 태그] 표기 + 총평 (400~550자)",
-  "selfSeenByPartner": "${names.partnerLabel}이 ${names.selfLabel}을 어떻게 경험하는가 — 십성 교차 근거 (400~550자)",
-  "partnerSeenBySelf": "${names.selfLabel}이 ${names.partnerLabel}을 어떻게 경험하는가 — 십성 교차 근거 (400~550자)",
-  "attractionStructure": "왜 서로에게 끌렸는가 — 천간합·일간 상생상극 근거 + [끌림의 숨은 장치] 반영 (400~550자)",
-  "synergy": "성격·소통·라이프스타일이 잘 맞는 지점 — [병-치유 매트릭스]를 중심 분석으로 (500~700자)",
-  "riskDisclosure": "반복되는 다툼 패턴 — 충형파해·용신 교차 근거, 심리 저격형 문장 포함 (600~800자)",
+  "execSummary": "도입 훅 + 관계를 한 문장으로 정의 + [관계 유형 태그] 표기 + 총평 (500~700자)",
+  "selfSeenByPartner": "${names.partnerLabel}이 ${names.selfLabel}을 어떻게 경험하는가 — 십성 교차 근거, 구체적 장면 2개 이상 포함해 충분히 서술 (600~800자)",
+  "partnerSeenBySelf": "${names.selfLabel}이 ${names.partnerLabel}을 어떻게 경험하는가 — 십성 교차 근거, 구체적 장면 2개 이상 포함해 충분히 서술 (600~800자)",
+  "attractionStructure": "왜 서로에게 끌렸는가 — 천간합·일간 상생상극 근거 + [끌림의 숨은 장치] 반영 (500~700자)",
+  "synergy": "성격·소통·라이프스타일이 잘 맞는 지점 — [병-치유 매트릭스]를 중심 분석으로 (550~750자)",
+  "riskDisclosure": "반복되는 다툼 패턴 — 충형파해·용신 교차 근거, 심리 저격형 문장 포함 (700~900자)",
   "riskManagementSelf": "${names.selfLabel}을 위한 화해 사용설명서 — 행동 단위 조언 (400~550자)",
   "riskManagementPartner": "${names.partnerLabel}을 위한 화해 사용설명서 — 행동 단위 조언 (400~550자)",
   "chemistryHook": "케미스트리 심리 저격 훅 (150~250자)",
@@ -274,13 +274,13 @@ ${formatCoupleWolunHighlightForPrompt(input.wolunHighlight, { self: names.selfLa
   "chemistrySkinshipLanguage": "스킨십 언어 차이 (200~300자)",
   "chemistrySignalDictionary": "밤의 시그널 사전 — 오해 신호 2~3개 번역+처방 (300~450자)",
   "chemistryTimingPreview": "온도 타이밍 예고(라이트) — [온도 타이밍] 블록 구간만, 연도 언급 금지 (150~250자)",
-  "financialOutlook": "공동 재무 전망 — 돈 쓰는 스타일 궁합 (350~450자)",
-  "longTermFit": "장기 통합 적합성 — [배우자궁 자체 진단]을 먼저 언급한 뒤 결혼하면 어떤 부부인가, 배우자궁(일지) 교차 근거 (400~550자)",
-  "backtest": "커플 백테스트 — 두 사람 대운·세운 교차로 본 과거 흐름, 적중 체감 톤(단정형) (400~550자)",
-  "futureCalendar": "향후 3년 통합 캘린더 — 좋은 시기/주의 시기 (400~550자)",
-  "crisisScenario": "위기 시나리오 — 헤어질 위험이 있다면 언제·왜·예방책 (400~550자)",
-  "roadmap": "통합 로드맵 — 단계별 행동 아이템 (400~550자)",
-  "finalOpinion": "최종 의견 — 총평, 담담한 격려로 마무리 (300~400자)"
+  "financialOutlook": "공동 재무 전망 — 돈 쓰는 스타일 궁합 (450~600자)",
+  "longTermFit": "장기 통합 적합성 — [배우자궁 자체 진단]을 먼저 언급한 뒤 결혼하면 어떤 부부인가, 배우자궁(일지) 교차 근거 (500~650자)",
+  "backtest": "커플 백테스트 — 두 사람 대운·세운 교차로 본 과거 흐름, 적중 체감 톤(단정형) (500~650자)",
+  "futureCalendar": "향후 3년 통합 캘린더 — 좋은 시기/주의 시기 (500~650자)",
+  "crisisScenario": "위기 시나리오 — 헤어질 위험이 있다면 언제·왜·예방책 (450~600자)",
+  "roadmap": "통합 로드맵 — 단계별 행동 아이템 (450~600자)",
+  "finalOpinion": "최종 의견 — 총평, 담담한 격려로 마무리 (400~500자)"
 }`;
 
   return { system, user, typeNames, relationshipType };
@@ -320,13 +320,18 @@ const SECTION_KEYS: readonly (keyof CoupleSections)[] = [
   "financialOutlook", "longTermFit", "backtest", "futureCalendar", "crisisScenario", "roadmap", "finalOpinion",
 ];
 
+// 2026-07-17 채움률 실측(20페이지 PDF 렌더 검증) 하한 상향 — 특히
+// selfSeenByPartner/partnerSeenBySelf(단독 필드가 페이지 하나를 통째로 차지,
+// 실측 채움률 23~30%)를 크게 올리고, 나머지도 폰트·줄간격 상향(9→9.8pt,
+// 1.55→1.75) 이후에도 부족한 만큼만 완만히 올렸다. 케미스트리·리스크관리는
+// 별도 경량 비주얼(온도 게이지·Do/Don't 카드)로 보강하므로 그대로 둔다.
 export const COUPLE_FIELD_RANGES: FieldRanges = {
-  execSummary: { min: 400, max: 550 },
-  selfSeenByPartner: { min: 400, max: 550 },
-  partnerSeenBySelf: { min: 400, max: 550 },
-  attractionStructure: { min: 400, max: 550 },
-  synergy: { min: 500, max: 700 },
-  riskDisclosure: { min: 600, max: 800 },
+  execSummary: { min: 500, max: 700 },
+  selfSeenByPartner: { min: 600, max: 800 },
+  partnerSeenBySelf: { min: 600, max: 800 },
+  attractionStructure: { min: 500, max: 700 },
+  synergy: { min: 550, max: 750 },
+  riskDisclosure: { min: 700, max: 900 },
   riskManagementSelf: { min: 400, max: 550 },
   riskManagementPartner: { min: 400, max: 550 },
   chemistryHook: { min: 150, max: 250 },
@@ -337,13 +342,13 @@ export const COUPLE_FIELD_RANGES: FieldRanges = {
   chemistrySkinshipLanguage: { min: 200, max: 300 },
   chemistrySignalDictionary: { min: 300, max: 450 },
   chemistryTimingPreview: { min: 150, max: 250 },
-  financialOutlook: { min: 350, max: 450 },
-  longTermFit: { min: 400, max: 550 },
-  backtest: { min: 400, max: 550 },
-  futureCalendar: { min: 400, max: 550 },
-  crisisScenario: { min: 400, max: 550 },
-  roadmap: { min: 400, max: 550 },
-  finalOpinion: { min: 300, max: 400 },
+  financialOutlook: { min: 450, max: 600 },
+  longTermFit: { min: 500, max: 650 },
+  backtest: { min: 500, max: 650 },
+  futureCalendar: { min: 500, max: 650 },
+  crisisScenario: { min: 450, max: 600 },
+  roadmap: { min: 450, max: 600 },
+  finalOpinion: { min: 400, max: 500 },
 };
 
 export function parseCoupleSections(obj: unknown): CoupleSections | null {

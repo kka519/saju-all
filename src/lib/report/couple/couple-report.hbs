@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<style>
+{{{fontFaceCss}}}
+* { margin:0; padding:0; box-sizing:border-box; }
+@page { size:A4; margin:0; }
+body { font-family:'NotoKR', "Apple SD Gothic Neo", "Malgun Gothic", sans-serif; color:#222; font-size:9.8pt; line-height:1.75; counter-reset:rpage; }
+.page { width:210mm; height:297mm; padding:13mm 16mm 16mm 16mm; page-break-after:always; position:relative; overflow:hidden; counter-increment:rpage; }
+.page:last-child { page-break-after:auto; }
+.page::after { content:"본 자료는 명리학 관점의 참고용 분석이며 금융투자상품의 매매 권유가 아닙니다  ·  LUNA LIFE RESEARCH  ·  " counter(rpage) " / 20"; position:absolute; bottom:5mm; left:0; right:0; text-align:center; font-size:6.5pt; color:#999; }
+
+.band { background:#1A1A2E; color:#fff; margin:-13mm -16mm 7mm -16mm; padding:6mm 16mm 5mm 16mm; }
+.band .brand { font-size:8pt; letter-spacing:2.5px; color:#C9A84C; font-weight:bold; }
+.band .doctype { float:right; font-size:8pt; color:#aab; }
+.band h2 { font-size:11pt; font-weight:bold; margin-top:1.5mm; }
+.part { color:#C9A84C; font-size:8pt; letter-spacing:1px; }
+
+h1.title { font-family:'NotoSerifKR', serif; font-weight:bold; font-size:19pt; color:#1A1A2E; line-height:1.35; margin:2mm 0 1mm 0; }
+.subtitle { font-size:9.5pt; color:#666; margin-bottom:5mm; }
+
+.dealbox { width:62mm; float:right; border-top:3px solid #C9A84C; background:#F7F5F0; padding:4mm; margin:0 0 4mm 6mm; }
+.dealbox .op { font-size:8pt; color:#888; }
+.dealbox .val { font-size:13pt; font-weight:bold; color:#1A1A2E; margin-bottom:2mm; }
+.dealbox table { width:100%; border-collapse:collapse; font-size:8pt; }
+.dealbox td { padding:1.2mm 0; border-bottom:1px solid #E5E0D5; }
+.dealbox td:last-child { text-align:right; font-weight:bold; }
+.dealbox .self { color:#9A7B2D; } .dealbox .partner { color:#5A63A0; }
+
+.sec { font-size:10.5pt; font-weight:bold; color:#1A1A2E; border-left:3.5px solid #C9A84C; padding-left:2.5mm; margin:5mm 0 2.5mm 0; }
+p.body { text-align:justify; margin-bottom:2.5mm; }
+ul.summary { list-style:none; margin:2mm 0 4mm 0; }
+ul.summary li { padding-left:5mm; position:relative; margin-bottom:2.2mm; text-align:justify; }
+ul.summary li:before { content:"■"; color:#C9A84C; position:absolute; left:0; font-size:7pt; top:1px; }
+ul.summary b { color:#1A1A2E; }
+
+table.grid { width:100%; border-collapse:collapse; font-size:8.5pt; margin:2mm 0 3.5mm 0;}
+table.grid th { background:#1A1A2E; color:#fff; padding:1.7mm 2mm; font-weight:bold; text-align:center; }
+table.grid td { border-bottom:1px solid #ddd; padding:1.7mm 2mm; text-align:center; }
+table.grid td.l { text-align:left; }
+table.grid tr.hl { background:#FBF6E9; }
+table.grid .hanja { font-size:14pt; font-weight:bold; color:#1A1A2E; }
+table.grid .hanja small { font-size:8pt; color:#888; font-weight:normal; margin-left:1mm; }
+table.grid.small { font-size:8pt; }
+table.grid.small td, table.grid.small th { padding:1.4mm 1.5mm; }
+
+.chart { width:100%; margin:1mm 0 2mm 0; }
+.chart svg { width:100%; height:auto; display:block; }
+
+.callout { background:#F7F5F0; border-left:3.5px solid #1A1A2E; padding:3mm 4mm; margin:3mm 0; }
+.callout b { color:#1A1A2E; }
+.warn { background:#FBEFEE; border-left:3.5px solid #C0574F; padding:3mm 4mm; margin:3mm 0; font-size:8.5pt;}
+.gold { background:#FBF6E9; border-left:3.5px solid #C9A84C; padding:3mm 4mm; margin:3mm 0; font-size:8.5pt;}
+
+.tag { display:inline-block; font-size:7pt; font-weight:bold; padding:0.3mm 2mm; border-radius:2px; color:#fff; }
+.t-self { background:#C9A84C; } .t-partner { background:#7A8CC9; } .t-warn { background:#C0574F; } .t-ok { background:#4E8F6B; }
+
+.badge { display:inline-block; font-size:9pt; font-weight:bold; padding:2mm 4mm; border-radius:3px; margin:2mm 0 3mm 0; }
+.badge.self { background:#FBF6E9; color:#9A7B2D; border:1px solid #C9A84C; }
+.badge.partner { background:#EEF0FA; color:#5A63A0; border:1px solid #7A8CC9; }
+
+.chk { font-size:8.5pt; border:1px solid #ddd; border-left:3px solid #C9A84C; padding:2.2mm 3mm; margin-bottom:1.8mm; }
+.chk .box { color:#888; font-size:8.5pt; float:right; white-space:nowrap; margin-left:3mm;}
+
+.toc { list-style:none; margin:3mm 0; }
+.toc li { padding:1.6mm 0; border-bottom:1px dotted #ccc; font-size:9pt; }
+.toc .pt { color:#C9A84C; font-weight:bold; margin-right:2mm; font-size:8pt;}
+.toc .pg { float:right; color:#888; }
+
+.compliance { font-size:7.5pt; color:#777; line-height:1.6; border-top:1px solid #ccc; padding-top:3mm; margin-top:4mm; text-align:justify;}
+.analyst { font-size:8pt; color:#555; margin-top:1mm; }
+
+.ticker { text-align:center; margin:8mm 0; }
+.ticker .glyph { display:inline-block; font-family:'NotoSerifKR', serif; font-weight:bold; font-size:34pt; padding:6mm 10mm; border:2px solid; border-radius:4px; }
+.ticker .self { color:#9A7B2D; border-color:#C9A84C; margin-right:6mm; }
+.ticker .partner { color:#5A63A0; border-color:#7A8CC9; margin-left:6mm; }
+.ticker .x { font-size:20pt; color:#888; vertical-align:middle; }
+.ticker .names { margin-top:3mm; font-size:9.5pt; color:#666; }
+
+.healgrid { width:100%; border-collapse:collapse; font-size:8pt; margin:2mm 0 3.5mm 0; }
+.healgrid th { background:#1A1A2E; color:#fff; padding:1.7mm 2mm; text-align:center; }
+.healgrid td { border-bottom:1px solid #ddd; padding:1.7mm 2mm; text-align:left; }
+.healgrid .resolved { color:#4E8F6B; font-weight:bold; }
+.healgrid .unresolved { color:#C0574F; font-weight:bold; }
+
+/* ===== 페이지 골격 재설계(2026-07-17) — 섹션 넘버 밴드·본문+사이드바·풀쿼트·결론 배너 ===== */
+.bandmain { display:flex; align-items:center; gap:4mm; margin-top:2.5mm; }
+.band .bandnum { font-family:'NotoSerifKR', serif; font-weight:bold; font-size:28pt; color:#C9A84C; line-height:1; }
+.band h2 { font-size:13pt; }
+
+.layout { display:flex; gap:6mm; align-items:flex-start; }
+.layout .body-col { flex:1; min-width:0; }
+.sidebar-col { width:44mm; flex-shrink:0; }
+.statcard { background:#F7F5F0; border-left:3px solid #C9A84C; padding:3mm 3.5mm; margin-bottom:3mm; }
+.statcard.partner { border-left-color:#7A8CC9; background:#EEF0FA; }
+.statcard .label { font-size:6.8pt; color:#888; letter-spacing:0.4px; margin-bottom:1mm; }
+.statcard .value { font-size:10pt; font-weight:bold; color:#1A1A2E; line-height:1.35; }
+
+.pullquote { font-family:'NotoSerifKR', serif; font-size:13.5pt; font-weight:bold; color:#1A1A2E; line-height:1.5; margin:4.5mm 0; padding:2.5mm 0 2.5mm 5mm; border-left:4px solid #C9A84C; }
+
+.pagefoot-banner { background:#1A1A2E; color:#fff; padding:3mm 4mm; margin-top:4mm; font-size:9.5pt; font-weight:bold; border-radius:2px; }
+.pagefoot-banner .tag2 { background:#C9A84C; color:#1A1A2E; font-size:7pt; font-weight:bold; padding:0.6mm 2mm; border-radius:2px; margin-right:2.5mm; }
+</style>
+</head>
+<body>
+
+<!-- ============ P.1 표지 ============ -->
+<div class="page">
+  <div class="band">
+    <span class="brand">{{meta.brand}}</span>
+    <span class="doctype">COUPLE MERGER RESEARCH | {{meta.reportDate}}</span>
+    <div class="bandmain"><span class="bandnum">01</span><h2>커플 합병 리서치 — 두 사람의 결합을 실사한다</h2></div>
+  </div>
+
+  <div class="ticker">
+    <span class="glyph self">{{ticker.selfHanja}}</span><span class="x">×</span><span class="glyph partner">{{ticker.partnerHanja}}</span>
+    <div class="names">{{names.self}} × {{names.partner}} · 일간 티커</div>
+  </div>
+
+  <h1 class="title" style="text-align:center;">{{ticker.dealName}}</h1>
+  <div class="subtitle" style="text-align:center;">관계 유형 태그 : <b>{{relationshipType}}</b> · 합병 실사 발행일 {{meta.reportDate}}</div>
+
+  <div class="sec">CONTENTS</div>
+  <ul class="toc">
+    <li><span class="pt">P.2~3</span> Executive Summary · 이 리포트를 읽는 법 <span class="pg">p.2~3</span></li>
+    <li><span class="pt">P.4</span> 두 종목 개요 — 명식표 2단 <span class="pg">p.4</span></li>
+    <li><span class="pt">P.5~6</span> 종목 A·B 심층 — 서로에게 비치는 나 <span class="pg">p.5~6</span></li>
+    <li><span class="pt">P.7~9</span> 끌림의 구조 · 시너지 · 병-치유 매트릭스 <span class="pg">p.7~9</span></li>
+    <li><span class="pt">P.10~11</span> 리스크 공시 — 반복 분쟁 패턴 <span class="pg">p.10~11</span></li>
+    <li><span class="pt">P.12~13</span> 리스크 관리 매뉴얼 <span class="pg">p.12~13</span></li>
+    <li><span class="pt">P.14~15</span> 케미스트리 리포트 <span class="pg">p.14~15</span></li>
+    <li><span class="pt">P.16</span> 공동 재무 & 장기 통합 적합성 <span class="pg">p.16</span></li>
+    <li><span class="pt">P.17</span> 커플 백테스트 <span class="pg">p.17</span></li>
+    <li><span class="pt">P.18</span> 향후 3년 통합 캘린더 <span class="pg">p.18</span></li>
+    <li><span class="pt">P.19</span> 위기 시나리오 & 통합 로드맵 <span class="pg">p.19</span></li>
+    <li><span class="pt">P.20</span> 최종 의견 + 다음 단계 <span class="pg">p.20</span></li>
+  </ul>
+
+  <div class="analyst">담당 애널리스트 : LUNA AI 리서치엔진 v1.0 | 검수 : 명리 데이터랩</div>
+</div>
+
+<!-- ============ P.2 익스큐티브 서머리 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">02</span><h2>익스큐티브 서머리</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <h1 class="title">이 딜의 총평</h1>
+      <div class="pullquote">{{execPullQuote}}</div>
+      <p class="body">{{md execSummary}}</p>
+    </div>
+    {{{sidebarExec}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{execConclusion}}</div>
+</div>
+
+<!-- ============ P.3 이 리포트를 읽는 법 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">03</span><h2>이 리포트를 읽는 법</h2></div></div>
+
+  <p class="body">본 리서치는 두 사람의 명식을 각각 상장된 두 종목처럼 다루고, 결합 가능성을 실사 보고서 형식으로 서술한다. 판정·숫자·관계·연도·유형명은 전부 코드가 계산하고, 서술만 AI가 맡는다 — 아래는 각 장이 답하는 질문이다.</p>
+  <table class="grid small">
+    <tr><th style="width:22%">장</th><th style="width:40%">답하는 질문</th><th>근거</th></tr>
+    <tr><td>P.4~6</td><td class="l">서로에게 어떻게 비치나</td><td class="l">십성 교차 · 명식표 2단</td></tr>
+    <tr><td>P.7~9</td><td class="l">왜 끌렸고, 어디가 잘 맞나</td><td class="l">천간합 · 끌림의 숨은 장치 · 병-치유 매트릭스</td></tr>
+    <tr><td>P.10~13</td><td class="l">어디서 부딪히고, 어떻게 푸나</td><td class="l">충형파해 · 용신 교차 · 회복 시계</td></tr>
+    <tr><td>P.14~15</td><td class="l">속궁합은 어떤 구조인가</td><td class="l">케미스트리 8블록</td></tr>
+    <tr><td>P.16~18</td><td class="l">돈·결혼·타이밍은 어떻게 관리하나</td><td class="l">재성 비교 · 배우자궁 · 세운 교차</td></tr>
+    <tr><td>P.19~20</td><td class="l">위험 신호와 다음 행동은</td><td class="l">위기 시나리오 · 로드맵</td></tr>
+  </table>
+
+  <div class="sec">용어 안내</div>
+  <table class="grid small">
+    <tr><th style="width:20%">표현</th><th>의미</th></tr>
+    <tr><td><b>관계 유형 태그</b></td><td class="l">두 일간의 오행 관계(같음/상생/상극)로 코드가 3분류한 결합 구조 — 관-재형·식상-인성형·비겁형</td></tr>
+    <tr><td><b>회복 시계</b></td><td class="l">다툰 뒤 감정이 회복되는 속도 — 십성 분포로 코드가 반나절/하루반 중 판정</td></tr>
+    <tr><td><b>병-치유 매트릭스</b></td><td class="l">각자 명식의 부담(병) 글자를 상대가 합으로 해소하는지 코드가 계산한 표</td></tr>
+    <tr><td><b>세운 교차</b></td><td class="l">두 사람의 연간 시황을 나란히 둔 코드 계산값 — 백테스트·캘린더의 근거</td></tr>
+  </table>
+
+  <div class="gold"><b>수치·연도·유형명은 전부 luckyloveme 원본 데이터에서 코드가 직접 계산한다.</b> AI는 그 값을 해설할 뿐, 임의로 만들어내지 않는다 — 자동 검증 게이트가 매 리포트마다 이를 확인한다.</div>
+</div>
+
+<!-- ============ P.4 두 종목 개요 — 명식표 2단 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">04</span><h2>두 종목 개요 — 명식표 2단</h2></div></div>
+
+  <div class="chart">{{{myeongsikTableHtml}}}</div>
+
+  <div class="sec">배우자궁(일지) 자체 진단</div>
+  <table class="grid small">
+    <tr><th style="width:20%">대상</th><th>진단</th></tr>
+    <tr><td>{{names.self}}</td><td class="l">{{spousePalace.self}}</td></tr>
+    <tr><td>{{names.partner}}</td><td class="l">{{spousePalace.partner}}</td></tr>
+  </table>
+
+  <div class="callout"><b>먼저 각자의 &#39;터&#39;를 본다.</b> 교차 분석에 앞서, 각자 명식의 배우자궁(일지)이 원국 내 다른 자리와 자체적으로 충·형·원진을 이루는지부터 확인한다 — 이 안정성이 이후 모든 교차 해석의 전제가 된다.</div>
+</div>
+
+<!-- ============ P.5 종목 A 심층 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">05</span><h2><span class="part">SECTION A</span> &nbsp;{{names.partner}}이 경험하는 {{names.self}}</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="gold">{{selfCrossNote}}</div>
+      <div class="pullquote">{{selfPullQuote}}</div>
+      <p class="body">{{md selfSeenByPartner}}</p>
+    </div>
+    {{{sidebarSelfDeep}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{selfConclusion}}</div>
+</div>
+
+<!-- ============ P.6 종목 B 심층 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">06</span><h2><span class="part">SECTION B</span> &nbsp;{{names.self}}이 경험하는 {{names.partner}}</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="gold">{{partnerCrossNote}}</div>
+      <div class="pullquote">{{partnerPullQuote}}</div>
+      <p class="body">{{md partnerSeenBySelf}}</p>
+    </div>
+    {{{sidebarPartnerDeep}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{partnerConclusion}}</div>
+</div>
+
+<!-- ============ P.7 합병 근거 — 끌림의 구조 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">07</span><h2>합병 근거 — 끌림의 구조</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="pullquote">{{attractionPullQuote}}</div>
+      <p class="body">{{md attractionStructure}}</p>
+      <div class="sec">끌림의 숨은 장치 — 코드 계산</div>
+      <div class="chart">{{{attractionDevicesHtml}}}</div>
+    </div>
+    {{{sidebarAttraction}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{attractionConclusion}}</div>
+</div>
+
+<!-- ============ P.8 시너지 상세 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">08</span><h2>시너지 상세</h2></div></div>
+
+  <p class="body">{{md synergy}}</p>
+
+  <div class="sec">오행 교집합 다이어그램 — 코드 계산</div>
+  <div class="chart">{{{ohaengOverlapChartSvg}}}</div>
+  <p class="body">{{ohaengOverlapNote}}</p>
+
+  <div class="sec">오행·용신 교차 요약 — 코드 계산</div>
+  <ul class="summary">
+    <li>{{ohaengSelfSummary}}</li>
+    <li>{{ohaengPartnerSummary}}</li>
+    <li>{{yongsinCrossSelfNote}}</li>
+    <li>{{yongsinCrossPartnerNote}}</li>
+  </ul>
+</div>
+
+<!-- ============ P.9 병-치유 매트릭스 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">09</span><h2>병(病)-치유 매트릭스 — 이 사람은 당신에게 약입니까</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <p class="body">각자 명식의 &#39;병&#39; 글자(기신·구신 — 구조적으로 부담이 되는 기운)를 상대가 가진 글자가 합으로 해소하는지 코드가 계산한 표다. 해소되면 상대가 나에게 &#39;약&#39;이 되는 구조, 해소되지 않으면 스스로 관리해야 할 취약 지대다.</p>
+      <div class="chart">{{{healMatrixHtml}}}</div>
+      <div class="callout">{{md healMatrixCaption}}</div>
+    </div>
+    {{{sidebarHealMatrix}}}
+  </div>
+
+  <div class="sec">배우자궁 자체 진단 재확인 — 코드 계산</div>
+  <table class="grid small">
+    <tr><th style="width:20%">대상</th><th>진단</th></tr>
+    <tr><td>{{names.self}}</td><td class="l">{{spousePalace.self}}</td></tr>
+    <tr><td>{{names.partner}}</td><td class="l">{{spousePalace.partner}}</td></tr>
+  </table>
+</div>
+
+<!-- ============ P.10 리스크 공시 — 합충 관계도 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">10</span><h2>리스크 공시 ① — 합충 관계도</h2></div></div>
+
+  <div class="chart">{{{relationsChartSvg}}}</div>
+
+  <p class="body">{{riskDisclosureIntro}}</p>
+
+  <table class="grid small">
+    <tr><th style="width:34%">일간 관계</th><th>배우자궁(일지) 관계</th></tr>
+    <tr><td class="l">{{dayGanRelationNote}}</td><td class="l">{{dayJiRelationNote}}</td></tr>
+  </table>
+</div>
+
+<!-- ============ P.11 리스크 공시 — 본문 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">11</span><h2>리스크 공시 ② — 반복 분쟁 패턴</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="pullquote">{{riskDisclosurePullQuote}}</div>
+      <p class="body">{{md riskDisclosureBody}}</p>
+      <div class="sec">충돌 지점 재확인 — 코드 계산</div>
+      <div class="chart">{{{riskDisclosureEvidenceHtml}}}</div>
+    </div>
+    {{{sidebarRiskDisclosure}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{riskDisclosureConclusion}}</div>
+</div>
+
+<!-- ============ P.12 리스크 관리 — 본인 장 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">12</span><h2>리스크 관리 매뉴얼 — {{names.self}}을 위한 장</h2></div></div>
+
+  <div class="badge self">{{names.self}}의 회복 시계 : {{clockLabels.self}}</div>
+  <div class="pullquote">{{riskMgmtSelfPullQuote}}</div>
+  <p class="body">{{md riskManagementSelf}}</p>
+
+  <div class="chart">{{{reconciliationCardSelf}}}</div>
+</div>
+
+<!-- ============ P.13 리스크 관리 — 상대 장 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">13</span><h2>리스크 관리 매뉴얼 — {{names.partner}}을 위한 장</h2></div></div>
+
+  <div class="badge partner">{{names.partner}}의 회복 시계 : {{clockLabels.partner}}</div>
+  <div class="pullquote">{{riskMgmtPartnerPullQuote}}</div>
+  <p class="body">{{md riskManagementPartner}}</p>
+
+  <div class="chart">{{{reconciliationCardPartner}}}</div>
+</div>
+
+<!-- ============ P.14 케미스트리 ①~④ ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">14</span><h2>케미스트리 리포트 ① — 훅 · 페르소나 · 욕구 · 주도권</h2></div></div>
+
+  <div class="sec">심리 저격 훅</div>
+  <p class="body">{{md chemistryHook}}</p>
+
+  <div class="sec">밤의 페르소나</div>
+  <p class="body">{{md chemistryPersona}}</p>
+
+  <div class="sec">욕구 온도계</div>
+  <p class="body">{{md chemistryDesireGauge}}</p>
+
+  <div class="sec">예열-지속 온도 게이지 — 코드 계산</div>
+  <div class="chart">{{{paceGaugeSvg}}}</div>
+
+  <div class="sec">주도권 구조</div>
+  <p class="body">{{md chemistryLeadStructure}}</p>
+</div>
+
+<!-- ============ P.15 케미스트리 ⑤~⑧ ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">15</span><h2>케미스트리 리포트 ② — 곡선 · 스킨십 · 시그널 · 타이밍</h2></div></div>
+
+  <div class="sec">예열-지속 곡선</div>
+  <p class="body">{{md chemistryPaceCurve}}</p>
+
+  <div class="sec">스킨십 언어</div>
+  <p class="body">{{md chemistrySkinshipLanguage}}</p>
+
+  <div class="sec">밤의 시그널 사전</div>
+  <p class="body">{{md chemistrySignalDictionary}}</p>
+
+  <div class="sec">온도 타이밍 예고</div>
+  <p class="body">{{md chemistryTimingPreview}}</p>
+</div>
+
+<!-- ============ P.16 공동 재무 & 장기 통합 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">16</span><h2>공동 재무 전망 & 장기 통합 적합성</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="sec">공동 재무 전망</div>
+      <p class="body">{{md financialOutlook}}</p>
+
+      <div class="sec">장기 통합 적합성</div>
+      <div class="pullquote">{{financePullQuote}}</div>
+      <p class="body">{{md longTermFit}}</p>
+    </div>
+    {{{sidebarFinance}}}
+  </div>
+
+  <div class="pagefoot-banner"><span class="tag2">결론</span>{{financeConclusion}}</div>
+</div>
+
+<!-- ============ P.17 커플 백테스트 — 세운 교차 곡선 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">17</span><h2>커플 백테스트 — 2인 세운 교차 곡선</h2></div></div>
+
+  <div class="chart">{{{seunChartSvg}}}</div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="pullquote">{{backtestPullQuote}}</div>
+      <p class="body">{{md backtest}}</p>
+    </div>
+    {{{sidebarBacktest}}}
+  </div>
+</div>
+
+<!-- ============ P.18 향후 3년 통합 캘린더 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">18</span><h2>향후 3년 통합 캘린더</h2></div></div>
+
+  <table class="grid small">
+    <tr><th style="width:12%">연도</th><th style="width:14%">{{names.self}}</th><th style="width:14%">{{names.partner}}</th><th>비고</th></tr>
+    {{#each seunTable}}
+    <tr{{#if this.isHighlight}} class="hl"{{/if}}><td><b>{{this.year}}년</b></td><td><span class="tag t-self">{{this.selfScore}}</span></td><td><span class="tag t-partner">{{this.partnerScore}}</span></td><td class="l">{{this.note}}</td></tr>
+    {{/each}}
+  </table>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="pullquote">{{calendarPullQuote}}</div>
+      <p class="body">{{md futureCalendar}}</p>
+    </div>
+    {{{sidebarCalendar}}}
+  </div>
+</div>
+
+<!-- ============ P.19 위기 시나리오 & 통합 로드맵 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">19</span><h2>위기 시나리오 & 통합 로드맵</h2></div></div>
+
+  <div class="sec">위기 시나리오 & 헤지</div>
+  <p class="body">{{md crisisScenario}}</p>
+  <div class="warn"><b>변동성 특약.</b> 위 시나리오는 헤어짐을 단정하는 예측이 아니라, 관리 가능한 변동성 구간에 대한 사전 공시다.</div>
+
+  <div class="sec">통합 로드맵 & 처방전</div>
+  <p class="body">{{md roadmap}}</p>
+</div>
+
+<!-- ============ P.20 최종 의견 ============ -->
+<div class="page">
+  <div class="band"><span class="brand">{{meta.brand}}</span><span class="doctype">{{names.self}} × {{names.partner}}</span>
+    <div class="bandmain"><span class="bandnum">20</span><h2>최종 의견 + 다음 단계</h2></div></div>
+
+  <div class="layout">
+    <div class="body-col">
+      <div class="sec">최종 의견</div>
+      <div class="pullquote">{{finalPullQuote}}</div>
+      <p class="body">{{md finalOpinion}}</p>
+    </div>
+    {{{sidebarFinal}}}
+  </div>
+
+  <div class="sec">더 궁금한 것이 있다면</div>
+  <table class="grid small">
+    <tr><th style="width:30%">서비스</th><th style="width:40%">내용</th><th>이용</th></tr>
+    {{#each upsellRows}}
+    <tr{{#if this.highlight}} class="hl"{{/if}}><td>{{this.service}}</td><td class="l">{{this.content}}</td><td class="l">{{this.usage}}</td></tr>
+    {{/each}}
+  </table>
+
+  <p class="body" style="margin-top:3mm;"><b>LUNA LIFE RESEARCH 드림</b></p>
+
+  <div class="compliance">
+    <b>Compliance Notice.</b> {{complianceNotice}}
+  </div>
+</div>
+
+</body>
+</html>

@@ -158,6 +158,10 @@ const STYLE_BY_SLUG: Record<string, { length: string; focus: string }> = {
     length: "900-1200자",
     focus: "연애 패턴, 잘 맞는 상대 유형, 갈등 패턴, 현재 관계 조언",
   },
+  // 폐기됨(2026-07-17) — couple-match는 전용 20페이지 PDF 파이프라인
+  // (couple-reports/[id]/generate)으로 완전히 이관됐다. saju/interpret 라우트가
+  // 이 슬러그를 진입 시점에 차단하므로 이 항목은 더 이상 조회되지 않는다 — 과거
+  // 3중 방어 이력 보존을 위해 삭제하지 않고 남긴다(지시문_PhaseC_배포전마감_20260717.md §3-5).
   "couple-match": {
     length: "700-900자",
     focus: "커플 궁합 — [본인 명식]과 [상대방 명식] 두 명식을 모두 반드시 활용해 일간 상생상극, 지지 합충 비교, 십성 보완 관계로 본 관계 흐름과 갈등 포인트, 관계 발전 시기를 짚는다",

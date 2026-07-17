@@ -5,25 +5,38 @@
 // (/api/reports/[id]/generate)와 동일한 비동기 구조를 그대로 복제.
 // 즉시 202 응답 후 after() 콜백으로 백그라운드 실행.
 //
-// ⚠️ Phase A(파이프라인 골격) — 5파트 콘텐츠는 더미 텍스트다. 실제 LLM 프롬프트
-// 설계·용신 게이트·20페이지 NAVY/GOLD 템플릿은 Phase B에서 교체한다
-// (기획_궁합리포트_합병리서치_20260715.md §7). 그래서 life-analyst-report와 달리
-// pdf_page_count 를 20으로 엄격 검증하지 않는다 — Phase B에서 정식 템플릿이
-// 들어오면 활성화.
+// Phase B(2026-07-17) — 실제 23필드 LLM 콘텐츠 + §5/§9 진실 원천 게이트 +
+// 20페이지 NAVY/GOLD 템플릿(couple-report.hbs)으로 Phase A 더미를 교체했다.
 //
 // ⚠️ Vercel 미배포 상태 — maxDuration 실효성은 실배포 후 재검증 필요.
 
 import { after, NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { fetchMyeongsikWithFallback } from "@/lib/saju/fetch-myeongsik";
-import { COUPLE_MATCH_FIELDS } from "@/lib/saju/saju-api";
-import { renderDummyCoupleReportHtml } from "@/lib/report/couple/render-dummy-html";
+import { fetchMyeongsikWithFallback, toBirthInfo, type BirthInputLike } from "@/lib/saju/fetch-myeongsik";
+import { COUPLE_MATCH_FIELDS, formatSajuToManseryeok, type SajuAnalysisResponse } from "@/lib/saju/saju-api";
+import { computeCoupleRelationMatrix } from "@/lib/report/couple/relation-matrix";
+import { computeCoupleSeunSeries } from "@/lib/report/couple/couple-seun-data";
+import { computeCoupleWolunHighlight } from "@/lib/report/couple/couple-wolun-data";
+import { resolveCoupleNames } from "@/lib/report/couple/prompts";
+import { generateCoupleContentWithRetry } from "@/lib/report/couple/generate";
+import { computeCoupleTypeNames } from "@/lib/report/couple/type-names";
+import { judgeRelationshipType } from "@/lib/report/couple/section9";
+import { buildCoupleTemplateContext } from "@/lib/report/couple/build-couple-template-context";
+import { renderCoupleReportHtml } from "@/lib/report/couple/render-couple-html";
 import { renderPdf } from "@/lib/report/template/render-pdf";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
 const MAX_ATTEMPTS = 3;
+
+// weolun 필드는 COUPLE_MATCH_FIELDS 예산 절약을 위해 프롬프트 텍스트(만세력)에서는
+// 제외하고 코드 계산(온도 타이밍)에만 쓴다 — saju-api.ts COUPLE_MATCH_FIELDS 주석 참고.
+function stripWeolun(a: SajuAnalysisResponse | null): SajuAnalysisResponse | null {
+  if (!a) return null;
+  const { weolun: _weolun, ...rest } = a;
+  return rest;
+}
 
 async function runPipeline(reportId: string) {
   const service = createServiceClient();
@@ -57,80 +70,116 @@ async function runPipeline(reportId: string) {
 
     await setStage("normalizing", 5);
 
-    // 본인+상대방 2회 fetch — couple-match 채팅형 시절과 동일 로직 재사용
-    // (fetch-myeongsik.ts, COUPLE_MATCH_FIELDS 경량 필드셋).
+    const selfInput: BirthInputLike = {
+      birth_date: input.birth_date,
+      birth_time: input.birth_time,
+      time_unknown: input.time_unknown,
+      gender: input.gender,
+      calendar: input.calendar,
+      is_leap_month: input.is_leap_month,
+    };
+    const partnerInput: BirthInputLike = {
+      birth_date: input.partner_birth_date,
+      birth_time: input.partner_birth_time ?? null,
+      time_unknown: input.partner_time_unknown ?? false,
+      gender: input.partner_gender,
+      calendar: input.partner_calendar,
+      is_leap_month: input.partner_is_leap_month ?? false,
+    };
+
+    // 본인+상대방 2회 fetch(기존과 동일 호출 횟수 — luckyloveme 소진 방어) + weolun
+    // 추가(온도 타이밍 코드 계산용, 프롬프트 텍스트에는 넣지 않음).
     const [self, partner] = await Promise.all([
-      fetchMyeongsikWithFallback(
-        {
-          birth_date: input.birth_date,
-          birth_time: input.birth_time,
-          time_unknown: input.time_unknown,
-          gender: input.gender,
-          calendar: input.calendar,
-          is_leap_month: input.is_leap_month,
-        },
-        COUPLE_MATCH_FIELDS,
-      ),
-      fetchMyeongsikWithFallback(
-        {
-          birth_date: input.partner_birth_date,
-          birth_time: input.partner_birth_time ?? null,
-          time_unknown: input.partner_time_unknown ?? false,
-          gender: input.partner_gender,
-          calendar: input.partner_calendar,
-          is_leap_month: input.partner_is_leap_month ?? false,
-        },
-        COUPLE_MATCH_FIELDS,
-      ),
+      fetchMyeongsikWithFallback(selfInput, [...COUPLE_MATCH_FIELDS, "weolun"]),
+      fetchMyeongsikWithFallback(partnerInput, [...COUPLE_MATCH_FIELDS, "weolun"]),
     ]);
 
-    const reportJson = {
-      self: { myeongsik: self.myeongsik, manseryeokText: self.manseryeokText ?? null },
-      partner: { myeongsik: partner.myeongsik, manseryeokText: partner.manseryeokText ?? null },
-    };
+    const selfManseryeokText = self.fullAnalysis
+      ? formatSajuToManseryeok(stripWeolun(self.fullAnalysis)!, toBirthInfo(selfInput))
+      : (self.manseryeokText ?? "");
+    const partnerManseryeokText = partner.fullAnalysis
+      ? formatSajuToManseryeok(stripWeolun(partner.fullAnalysis)!, toBirthInfo(partnerInput))
+      : (partner.manseryeokText ?? "");
 
+    const reportJson = {
+      self: { myeongsik: self.myeongsik, manseryeokText: selfManseryeokText },
+      partner: { myeongsik: partner.myeongsik, manseryeokText: partnerManseryeokText },
+    };
     await service
       .from("couple_reports")
-      .update({
-        report_json: reportJson as never,
-        updated_at: new Date().toISOString(),
-      })
+      .update({ report_json: reportJson as never, updated_at: new Date().toISOString() })
       .eq("id", reportId);
 
-    // Phase A — 5파트 전부 더미 텍스트. Phase B에서 실제 프롬프트(§3 페이지맵,
-    // §5 진실 원천 게이트)로 교체.
+    const matrix = computeCoupleRelationMatrix(
+      { myeongsik: self.myeongsik, fullAnalysis: self.fullAnalysis },
+      { myeongsik: partner.myeongsik, fullAnalysis: partner.fullAnalysis },
+    );
+    const seunSeries = computeCoupleSeunSeries(self.fullAnalysis, partner.fullAnalysis, new Date().getFullYear());
+    const wolunHighlight = computeCoupleWolunHighlight(
+      self.fullAnalysis,
+      partner.fullAnalysis,
+      matrix.selfView.pillars.day.jiji,
+      matrix.partnerView.pillars.day.jiji,
+    );
+    const names = resolveCoupleNames(input.name, input.partner_name);
+
     await setStage("llm_parts", 25);
-    const dummyParts = {
-      part1: "[Phase A 더미] 관계 개요 — 실제 콘텐츠는 Phase B에서 생성됩니다.",
-      part2: "[Phase A 더미] 시너지·리스크 공시 — 실제 콘텐츠는 Phase B에서 생성됩니다.",
-      part3: "[Phase A 더미] 리스크 관리·케미스트리 — 실제 콘텐츠는 Phase B에서 생성됩니다.",
-      part4: "[Phase A 더미] 재무·장기 적합성·백테스트 — 실제 콘텐츠는 Phase B에서 생성됩니다.",
-      part5: "[Phase A 더미] 캘린더·위기 시나리오·로드맵·총평 — 실제 콘텐츠는 Phase B에서 생성됩니다.",
-    };
+    const result = await generateCoupleContentWithRetry({
+      names,
+      selfManseryeokText,
+      partnerManseryeokText,
+      matrix,
+      seunSeries,
+      wolunHighlight,
+    });
+    if (result.remainingIssues.length > 0) {
+      console.warn(`[couple-report] ${reportId} 잔여 게이트 위반 ${result.remainingIssues.length}건:`, result.remainingIssues);
+    }
+
+    const typeNames = computeCoupleTypeNames(matrix.selfView, matrix.partnerView);
+    // §9 코드 판정 — buildCoupleContentPrompt가 프롬프트 생성 시 이미 계산한 값과
+    // 반드시 같은 로직(judgeRelationshipType)을 재사용해야 본문 표기와 템플릿
+    // 표기가 어긋나지 않는다.
+    const relationshipType = judgeRelationshipType(matrix);
 
     await service
       .from("couple_reports")
       .update({
-        sections_part1: dummyParts.part1 as never,
-        sections_part2: dummyParts.part2 as never,
-        sections_part3: dummyParts.part3 as never,
-        sections_part4: dummyParts.part4 as never,
-        sections_part5: dummyParts.part5 as never,
-        llm_provider: "dummy",
-        llm_model: "phase-a-placeholder",
+        sections_part1: result.sections as never,
+        sections_part2: { typeNames, relationshipType, wolunHighlight, remainingIssues: result.remainingIssues } as never,
+        llm_provider: result.provider,
+        llm_model: result.model,
         updated_at: new Date().toISOString(),
       })
       .eq("id", reportId);
 
     await setStage("rendering", 88);
-    const html = renderDummyCoupleReportHtml({
-      selfName: input.name || "본인",
-      partnerName: input.partner_name || "상대방",
-      parts: dummyParts,
+    const today = new Date().toLocaleDateString("ko-KR", {
+      timeZone: "Asia/Seoul",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
+
+    const context = buildCoupleTemplateContext({
+      names,
+      matrix,
+      selfFullAnalysis: self.fullAnalysis,
+      partnerFullAnalysis: partner.fullAnalysis,
+      seunSeries,
+      wolunHighlight,
+      sections: result.sections,
+      relationshipType: judgeRelationshipType(matrix),
+      typeNames,
+      meta: { reportDateLabel: today },
+    });
+    const html = renderCoupleReportHtml(context);
 
     await setStage("rendering_pdf", 92);
     const { buffer, pageCount } = await renderPdf(html);
+    if (pageCount !== 20) {
+      console.warn(`[couple-report] ${reportId} 페이지수 ${pageCount} (기대값 20) — 콘텐츠 길이 편차로 발생 가능, 배포 전 육안 확인 필요`);
+    }
 
     await setStage("uploading", 96);
     const pdfPath = `${report.order_id}/couple-report.pdf`;

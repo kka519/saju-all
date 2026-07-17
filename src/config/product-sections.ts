@@ -8,6 +8,6 @@ export type ProductSection = { title: string; slugs: string[] };
 
 export const PRODUCT_SECTIONS: ProductSection[] = [
   { title: "오늘의 운세", slugs: ["today-fortune"] },
-  { title: "LUNA LIFE RESEARCH — 인생 리포트", slugs: ["life-analyst-report"] },
-  { title: "두리의 연애 풀이", slugs: ["love-saju", "couple-match", "love-consulting"] },
+  { title: "LUNA LIFE RESEARCH — 인생 리포트", slugs: ["life-analyst-report", "couple-match"] },
+  { title: "두리의 연애 풀이", slugs: ["love-saju", "love-consulting"] },
 ];

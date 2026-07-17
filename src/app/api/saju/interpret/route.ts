@@ -170,14 +170,18 @@ export async function POST(req: NextRequest) {
 
   const { birthInfo, slug, productName, concerns, partnerBirthInfo } = parsed.data;
 
-  // couple-match 는 상대방 데이터 없이 어떤 경로로도 생성 불가 — 데모 경로도 예외 없음
-  // (2026-07-15 결함 수정, 3중 방어 중 하나. 결제 경로는 orders/create + buildSajuPrompt 게이트).
-  if (slug === "couple-match" && !partnerBirthInfo) {
+  // couple-match 는 2026-07-17부로 전용 20페이지 PDF 파이프라인(POST /api/couple-reports/[id]/generate,
+  // orders/confirm에서 결제 직후 라우팅)으로 완전히 이관됐다 — 이 결제 우회 데모 라우트로 계속
+  // 받으면 옛 채팅형 5섹션·두리 톤 결과가 나가 "구매 동선 두리 금지" 원칙과 실제 유료 상품(합병
+  // 실사 리포트)이 어긋난다(지시문_PhaseC_배포전마감_20260717.md §3-5). 여기서 즉시 차단하고,
+  // 아래 couple-match 관련 분기(partnerBirthInfo 검증·COUPLE_MATCH_FIELDS·상대방 만세력 fetch)는
+  // 이 슬러그로는 더 이상 도달하지 않는다 — 과거 3중 방어 이력 보존을 위해 삭제하지 않고 남긴다.
+  if (slug === "couple-match") {
     return NextResponse.json(
       {
         ok: false as const,
         stage: "validation-error" as const,
-        error: "궁합을 보려면 상대방 정보도 함께 입력해 주세요.",
+        error: "커플 궁합은 결제 후 전용 리포트 페이지에서 생성돼요. 상품 상세 페이지에서 진행해 주세요.",
       },
       { status: 400 },
     );

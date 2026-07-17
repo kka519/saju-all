@@ -14,6 +14,12 @@ import { PILLAR_KEYS, PILLAR_LABEL } from "./relation-matrix";
 import type { MyeongsikViewModel } from "@/lib/saju/build-myeongsik-view";
 import { getCheoneulJiji } from "@/lib/report/cheoneul-table";
 import { getGongmang } from "@/lib/report/gongmang";
+import { hasBatchim } from "@/lib/report/prompts/term-guard";
+
+/** 앞 명사의 받침 유무로 "와/과"를 고른다(받침 있으면 "과", 없으면 "와"). */
+export function withGwaJosa(noun: string): string {
+  return hasBatchim(noun) ? `${noun}과` : `${noun}와`;
+}
 
 // ── 4. 관계 유형 태그 ────────────────────────────────────
 export const RELATIONSHIP_TYPES = ["관-재형", "식상-인성형", "비겁형"] as const;
@@ -200,7 +206,7 @@ export function formatSpousePalaceDiagnosesForPrompt(
   const line = (name: string, diag: SpousePalaceDiagnosis) =>
     diag.stable
       ? `  ${name}: 배우자궁(일지) 자체 안정 — 원국 내 다른 자리와 충·형·원진 없음`
-      : `  ${name}: 배우자궁(일지)이 ${diag.issues.map((i) => `${i.withPosition}와(과) ${i.type}`).join(", ")} 관계 — 자체적으로 흔들리는 자리`;
+      : `  ${name}: 배우자궁(일지)이 ${diag.issues.map((i) => `${withGwaJosa(i.withPosition)} ${i.type}`).join(", ")} 관계 — 자체적으로 흔들리는 자리`;
   return [
     `[배우자궁 자체 진단 — longTermFit(p15)에서 상대와의 교차를 보기 전에 먼저 언급, 이 판정만 사용]`,
     line(names.self, d.self),

@@ -17,7 +17,10 @@ function escapeHtml(s: string): string {
 function pillarCell(p: PillarView | null, accentColor: string, isDayPillar: boolean): string {
   if (!p) return `<td class="l" style="color:#999">시 미상</td>`;
   const color = isDayPillar ? accentColor : NAVY;
-  return `<td class="hanja" style="color:${color}">${escapeHtml(p.cheonganHanja ?? p.cheongan)}${escapeHtml(p.jijiHanja ?? p.jiji)}<br><small>${escapeHtml(p.cheongan)}${escapeHtml(p.jiji)}</small></td>`;
+  return `<td class="hanja" style="color:${color}">
+    <div>${escapeHtml(p.cheonganHanja ?? p.cheongan)}<br><small>${escapeHtml(p.cheongan)}</small></div>
+    <div style="margin-top:1mm;">${escapeHtml(p.jijiHanja ?? p.jiji)}<br><small>${escapeHtml(p.jiji)}</small></div>
+  </td>`;
 }
 
 function singleTable(
@@ -25,7 +28,6 @@ function singleTable(
   fullAnalysis: SajuAnalysisResponse | null,
   name: string,
   accentColor: string,
-  roleLabel: string,
 ): string {
   const { pillars } = view;
   const sinStrength = (fullAnalysis as Record<string, unknown> | null)?.sinStrength as
@@ -37,7 +39,7 @@ function singleTable(
   return `
   <div style="flex:1; min-width:0;">
     <div style="background:${accentColor}; color:${NAVY}; padding:2mm 3mm; border-radius:3px 3px 0 0; font-weight:bold; font-size:9.5pt;">
-      ${escapeHtml(name)}${roleLabel}의 명식
+      ${escapeHtml(name)}의 명식
     </div>
     <table class="grid small" style="margin-top:0;">
       <tr><th style="width:22%"></th><th>시주</th><th>일주</th><th>월주</th><th>년주</th></tr>
@@ -69,7 +71,7 @@ export function renderCoupleMyeongsikTableHtml(
 ): string {
   return `
 <div style="display:flex; gap:4mm; align-items:flex-start;">
-  ${singleTable(self.view, self.fullAnalysis, names.self, GOLD, "님")}
-  ${singleTable(partner.view, partner.fullAnalysis, names.partner, PARTNER_BLUE, "님")}
+  ${singleTable(self.view, self.fullAnalysis, names.self, GOLD)}
+  ${singleTable(partner.view, partner.fullAnalysis, names.partner, PARTNER_BLUE)}
 </div>`;
 }

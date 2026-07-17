@@ -81,9 +81,12 @@ export const productsSeed: ProductSeed[] = [
   {
     slug: "couple-match",
     name: "커플 궁합",
-    description: "두 사람의 명식을 모두 입력하면 합·충 교차로 관계의 결을 읽어드려요. 한 사람 풀이 두 배의 데이터로 보는, 가장 깊은 궁합이에요.",
+    // 두리 미등장 — LUNA LIFE RESEARCH 별도 페르소나로 이관(지시문_PhaseC_배포전마감_20260717.md §3-1)
+    description: "두 사람의 명식을 각각 상장 종목처럼 다루는 합병 실사 보고서. 합·충 교차 분석으로 관계의 구조를 검증합니다.",
     price: 19900,
-    value_line: "두 사람 명식 교차 분석 · 합충 비교",
+    // 카드에 페이지 수 노출 금지(0f047e4, 7/14) — life-analyst-report와 동일 패턴,
+    // 페이지 수는 상세 페이지에서만 노출(products/[slug]/page.tsx WHAT'S INSIDE 섹션).
+    value_line: "정식 합병 실사 보고서 PDF · 두 사람 교차 백테스트",
     display_order: 60,
     is_active: true,
   },

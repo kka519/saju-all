@@ -57,6 +57,23 @@ export default async function ProductDetailPage({
         <p className="mt-5 text-2xl font-mono font-medium text-starlight">{formatKRW(product.price)}</p>
       </header>
 
+      {product.slug === "couple-match" && (
+        <section className="mb-10 rounded-lg border border-night-border bg-night-surface/40 p-5">
+          <p className="text-xs font-mono text-night-fg-muted mb-1">WHAT&#39;S INSIDE</p>
+          <p className="text-xs text-night-fg-muted mb-3">A4 20페이지 — 한 페이지에 하나씩, 서로 다른 근거로 채워집니다.</p>
+          <ul className="space-y-2.5 text-sm text-night-fg-soft">
+            <li><span className="text-starlight font-mono mr-2">01</span>명식표 2단 — 두 사람의 명식을 나란히 놓고 비교합니다</li>
+            <li><span className="text-starlight font-mono mr-2">02</span>합충 관계도 — 두 명식 4기둥×4기둥 교차에서 합·충 신호를 표시합니다</li>
+            <li><span className="text-starlight font-mono mr-2">03</span>2인 세운 곡선 — 두 사람의 연간 시황을 나란히 그래프로 비교합니다</li>
+            <li><span className="text-starlight font-mono mr-2">04</span>커플 백테스트 — 과거 흐름이 실제 두 사람의 관계와 맞아떨어지는지 검증합니다</li>
+            <li><span className="text-starlight font-mono mr-2">05</span>케미스트리 리포트 — 밤의 궁합까지 포함한 정면 분석입니다</li>
+          </ul>
+          <p className="mt-4 text-xs text-night-fg-muted">
+            결제 후 자동 생성되며, 생성 진행 상황은 화면에서 실시간으로 안내해드려요.
+          </p>
+        </section>
+      )}
+
       <section>
         <h2 className="text-sm font-semibold mb-4 text-night-fg">사주 정보 입력</h2>
         <p className="text-xs text-night-fg-soft mb-4">정확할수록 더 정밀한 결과가 나옵니다.</p>
