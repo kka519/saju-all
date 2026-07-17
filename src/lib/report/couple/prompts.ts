@@ -16,7 +16,7 @@ import { formatRelationMatrixForPrompt } from "./relation-matrix";
 import type { CoupleSeunSeries } from "./couple-seun-data";
 import { formatCoupleSeunSeriesForPrompt } from "./couple-seun-data";
 import type { CoupleWolunHighlight } from "./couple-wolun-data";
-import { formatCoupleWolunHighlightForPrompt } from "./couple-wolun-data";
+import { formatCoupleWolunHighlightForPrompt, checkTimingPreviewHasMonthCount } from "./couple-wolun-data";
 import type { MyeongsikViewModel } from "@/lib/saju/build-myeongsik-view";
 import type { Oheng } from "@/lib/saju/derived";
 import {
@@ -175,9 +175,12 @@ ${FEW_SHOT_SAMPLES}
 [세운 점수 — 절대 준수]
 아래 [세운 교차] 블록의 연도·간지·점수만 언급하라. 블록에 없는 연도나 점수를
 새로 만들어내면 안 된다 — 언급하는 모든 연도-점수 쌍은 반드시 이 블록에서 그대로
-가져온 것이어야 한다. "2026~2027년(-58, -67)"처럼 여러 해를 묶어 점수를 괄호로
-나열하지 마라 — 어느 점수가 어느 해인지 모호해진다. 반드시 "2026년(-58)... 2027년
-(-67)..."처럼 연도마다 그 해의 점수를 바로 붙여 각각 따로 언급하라.
+가져온 것이어야 한다. 연도와 점수를 분리해서 쓰지 마라 — "2026~2027년(-58, -67)"
+처럼 여러 해를 묶어 점수를 괄호로 나열하는 것도, "2025년, 2026년에는 격차가
+벌어집니다. 을사년 -107, 병오년 -92"처럼 연도들을 먼저 나열한 뒤 점수를 나중에
+몰아서 말하는 것도 금지 — 둘 다 어느 점수가 어느 해인지 모호해진다. 반드시
+"2025년 을사년(-107)... 이어서 2026년 병오년(-92)..."처럼 연도 하나를 언급하면
+그 즉시 그 해의 점수를 바로 붙여 한 쌍씩 완결하고 나서 다음 연도로 넘어가라.
 
 [케미스트리 리포트 — chemistry 8블록]
 잠자리·밤·욕구·주도권을 정면으로 다루되(허용어: 잠자리, 밤, 욕구, 스킨십, 주도권,
@@ -379,30 +382,77 @@ export function extractAndParseCoupleJSON(text: string): CoupleSections | null {
   return null;
 }
 
-// ── 세운 일치 게이트(수정 3, 지시문_궁합_v4검토수정_20260716.md §7-1로 재작성) ──
-// "연도 토큰 귀속 매칭" — 근접 윈도우(±N자) 대신, 텍스트를 순서대로 스캔하며 부호
-// 있는 점수(+NN/-NN)를 "가장 최근에 등장한 연도"에 귀속시킨다. 근접 윈도우는 "2029년
-// …+59…2027년의 긴장"처럼 다른 연도가 뒤이어 나오면 +59를 2027년 것으로 오판하는
-// 오탐이 있었다(2026-07-16 v4 검토 실측) — 순차 귀속은 이 문제가 구조적으로 없다.
+// ── 세운 일치 게이트(수정 3, 지시문_궁합_v4검토수정_20260716.md §7-1로 재작성,
+// 2026-07-17 "연도 런/점수 런 청크 위치쌍 매칭"으로 추가 보강) ─────────────
+// 텍스트를 연도 토큰(YYYY년)·점수 토큰(+NN/-NN)의 순서열로 스캔한다. 연도가 N개
+// 연속 등장한 뒤 점수가 등장하면, 그 점수 개수가 N의 배수(k*N)일 때 N개씩 끊어
+// 같은 연도 순서에 반복 매칭한다 — "2026년과 2027년… 김경아님 -92, -43…
+// 최광훈님은 +66, +71"처럼 한 명씩 두 해 점수를 따로 나열하는 문장도 정확히
+// 처리한다(사람별로 같은 2개 연도가 두 번 반복되는 구조, 2026-07-17 실측). 배수가
+// 아니면(구조가 애매함) 귀속을 포기한다 — 예전에는 마지막 연도로 폴백했지만
+// 무리한 추정이 반복적으로 오탐을 냈다(2026-07-16/17 다수 실측) — 확실한 경우만
+// 검사하는 게 안전하다.
+// "을사년"/"병오년" 같은 간지 표기는 4자리 숫자가 아니라 이 스캔에서 자동으로
+// 건너뛰어진다. 예전 근접 윈도우 방식이 "2029년 …+59…2027년의 긴장"에서 +59를
+// 2027년 것으로 오판하던 문제는 이 순차 스캔 방식엔 없다.
+// 연도/점수 토큰이 "같은 언급"에 속하는지 판단하는 최대 문자 간격. "2025년과
+// 2026년이다 — 김경아님이 각각 대흉(" 처럼 연결구가 낀 경우도 하나의 런으로 봐야
+// 하지만("각각 대흉(" 22자 실측), 전혀 다른 문장의 연도 언급까지 쓸어담으면 안 된다
+// (예: "2028~2029년은 가속 구간이다" 언급 후 57자 뒤에 나오는 무관한 "2025년과
+// 2026년" — 이 둘은 별개 런이어야 함, 2026-07-17 실측 확인).
+const SEUN_TOKEN_MAX_GAP = 30;
+
 export function checkSeunConsistency(text: string, series: CoupleSeunSeries): string[] {
   const issues: string[] = [];
   const tokenPattern = /(\d{4})년|([+-]\d{1,3})(?!\d)/g;
-  let currentYear: number | null = null;
+  type Token = { kind: "year"; year: number; idx: number } | { kind: "score"; score: number; idx: number };
+  const tokens: Token[] = [];
   let m: RegExpExecArray | null;
   while ((m = tokenPattern.exec(text)) !== null) {
-    if (m[1]) {
-      currentYear = parseInt(m[1], 10);
-      continue;
-    }
-    if (currentYear === null || !series.years.includes(currentYear)) continue;
-    const score = parseInt(m[2], 10);
-    const idx = series.years.indexOf(currentYear);
+    if (m[1]) tokens.push({ kind: "year", year: parseInt(m[1], 10), idx: m.index });
+    else tokens.push({ kind: "score", score: parseInt(m[2], 10), idx: m.index });
+  }
+
+  const checkPair = (year: number, score: number) => {
+    if (!series.years.includes(year)) return;
+    const idx = series.years.indexOf(year);
     const validScores = new Set([series.self[idx].score, series.partner[idx].score]);
     if (!validScores.has(score)) {
       issues.push(
-        `${currentYear}년 귀속 점수 ${score >= 0 ? "+" : ""}${score}가 코드 계산값(본인 ${series.self[idx].score}/상대 ${series.partner[idx].score})과 불일치 — 세운 점수 창작 의심`,
+        `${year}년 귀속 점수 ${score >= 0 ? "+" : ""}${score}가 코드 계산값(본인 ${series.self[idx].score}/상대 ${series.partner[idx].score})과 불일치 — 세운 점수 창작 의심`,
       );
     }
+  };
+
+  const asYear = (t: Token) => (t as { kind: "year"; year: number; idx: number }).year;
+  const asScore = (t: Token) => (t as { kind: "score"; score: number; idx: number }).score;
+
+  let i = 0;
+  while (i < tokens.length) {
+    if (tokens[i].kind !== "year") {
+      i++;
+      continue;
+    }
+    const yearRun: number[] = [asYear(tokens[i])];
+    i++;
+    while (i < tokens.length && tokens[i].kind === "year" && tokens[i].idx - tokens[i - 1].idx <= SEUN_TOKEN_MAX_GAP) {
+      yearRun.push(asYear(tokens[i]));
+      i++;
+    }
+    const scoreRun: number[] = [];
+    while (i < tokens.length && tokens[i].kind === "score" && tokens[i].idx - tokens[i - 1].idx <= SEUN_TOKEN_MAX_GAP) {
+      scoreRun.push(asScore(tokens[i]));
+      i++;
+    }
+    if (scoreRun.length === 0) continue;
+
+    if (scoreRun.length % yearRun.length === 0) {
+      const chunkSize = yearRun.length;
+      for (let c = 0; c * chunkSize < scoreRun.length; c++) {
+        yearRun.forEach((y, k) => checkPair(y, scoreRun[c * chunkSize + k]));
+      }
+    }
+    // 배수가 아니면 구조가 애매하므로 검사를 건너뛴다(오탐 방지 우선).
   }
   return issues;
 }
@@ -556,6 +606,7 @@ export function validateCoupleSections(
   names: CoupleNames,
   typeNames: CoupleTypeNames,
   relationshipType: RelationshipType,
+  wolunHighlight: CoupleWolunHighlight,
 ): string[] {
   const proseText = SECTION_KEYS.map((k) => sections[k]).join("\n");
   const issues: string[] = [
@@ -570,6 +621,7 @@ export function validateCoupleSections(
     ...checkRelationshipTypeUsage(sections.execSummary, relationshipType),
     ...checkTimingPreviewNoSeunYear(sections.chemistryTimingPreview),
     ...checkGenderNeutralPrescription(sections),
+    ...checkTimingPreviewHasMonthCount(sections.chemistryTimingPreview, wolunHighlight),
   ];
   // 상대 일간 인용 게이트(§5.3) — 가짜 궁합 2차 방어. 두 일간 한글자가 모두 등장해야 함.
   const selfGan = matrix.selfView.pillars.day.cheongan;

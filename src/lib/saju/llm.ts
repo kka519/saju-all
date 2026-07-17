@@ -91,6 +91,44 @@ async function callAnthropic(req: LlmRequest, model: string, key: string | undef
   return { text, provider: "anthropic", model };
 }
 
+// ── 네트워크/일시적 API 오류 재시도(2026-07-17, 배포 전 보완) ────────────────
+// 대용량 스트리밍 호출 도중 ECONNRESET("terminated")으로 연결이 끊기거나 Anthropic이
+// 429(rate limit)/500/503/529(overloaded) 를 반환하는 경우가 실측 확인됨 — 콘텐츠
+// 품질과 무관한 일시적 장애라 리포트 파이프라인들의 "품질 재시도" 예산(파트/섹션 재생성
+// 횟수)을 소모시키지 않고 이 레이어에서 별도로 흡수한다. couple-report/life-analyst-report
+// 양쪽이 이 함수를 공유한다 — 지금까지 couple/generate.ts 에만 로컬로 있던 로직을 여기로
+// 승격하고 Anthropic APIError.status 판정을 추가했다.
+const NETWORK_RETRY_ATTEMPTS = 3;
+const RETRYABLE_ANTHROPIC_STATUS = new Set([429, 500, 503, 529]);
+
+async function isRetryableTransientError(err: unknown): Promise<boolean> {
+  const msg = err instanceof Error ? err.message : String(err);
+  const cause = err instanceof Error ? (err.cause as { code?: string } | undefined) : undefined;
+  if (msg.includes("terminated") || cause?.code === "ECONNRESET") return true;
+  const Anthropic = (await import("@anthropic-ai/sdk")).default;
+  if (err instanceof Anthropic.APIError && typeof err.status === "number") {
+    return RETRYABLE_ANTHROPIC_STATUS.has(err.status);
+  }
+  return false;
+}
+
+export async function generateInterpretationWithNetworkRetry(req: LlmRequest): Promise<LlmResponse> {
+  let lastErr: unknown;
+  for (let i = 1; i <= NETWORK_RETRY_ATTEMPTS; i++) {
+    try {
+      return await generateInterpretation(req);
+    } catch (err) {
+      if (!(await isRetryableTransientError(err)) || i === NETWORK_RETRY_ATTEMPTS) throw err;
+      lastErr = err;
+      console.warn(
+        `[llm] 네트워크/일시적 오류(${i}/${NETWORK_RETRY_ATTEMPTS}) — 재시도:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+  throw lastErr;
+}
+
 async function callGemini(req: LlmRequest, model: string, key: string | undefined): Promise<LlmResponse> {
   if (!key) throw new Error("GOOGLE_GENERATIVE_AI_API_KEY is required when LLM_PROVIDER=gemini");
   const { GoogleGenerativeAI } = await import("@google/generative-ai");

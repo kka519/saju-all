@@ -5,6 +5,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { toCustomerErrorMessage } from "@/lib/report/customer-error-message";
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -33,7 +34,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     stage: report.stage,
     progressPct: report.progress_pct,
     pdfPageCount: report.pdf_page_count,
-    errorMessage: isStalled ? "생성이 중단된 것으로 보여요. 다시 시도해 주세요." : report.error_message,
+    errorMessage: isStalled ? "생성이 중단된 것으로 보여요. 다시 시도해 주세요." : toCustomerErrorMessage(report.error_message),
     attemptCount: report.attempt_count,
   });
 }

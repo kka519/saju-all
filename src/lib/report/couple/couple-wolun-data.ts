@@ -116,7 +116,22 @@ export function formatCoupleWolunHighlightForPrompt(
   const reasonLabel = (reasons: WolunQualifyReason[]) => (reasons.length > 0 ? reasons.join("·") : "해당 없음");
   const relTiming = highlight.monthsFromNow === 0 ? "이번 달" : `약 ${highlight.monthsFromNow}개월 후`;
   return [
-    `[온도 타이밍 — 이 구간만 사용. 세운 연도("20XX년") 절대 언급 금지, "${relTiming}" 같은 상대 시점으로만 표기]`,
+    `[온도 타이밍 — 이 구간만 사용. 세운 연도("20XX년") 절대 언급 금지]`,
     `${highlight.ganji}월 — ${names.self} 발동 요인: ${reasonLabel(highlight.selfReasons)} / ${names.partner} 발동 요인: ${reasonLabel(highlight.partnerReasons)}${highlight.shared ? " (동반 상승)" : ""}`,
+    `⚠️ 시점 표기는 반드시 "${relTiming}"라는 문구를 정확히 그대로 써라 — "약 몇 개월 안에", "얼마 후"처럼 숫자를 뭉개는 표현 금지. 이 정확한 개월 수가 이 리포트가 다른 서비스와 차별화되는 지점이다.`,
   ].join("\n");
+}
+
+/**
+ * chemistryTimingPreview에 정확한 개월 수(또는 "이번 달")가 실제로 등장하는지 검사
+ * (지시문_궁합_v4검토수정_20260716.md 추가 지시 — "약 몇 개월"처럼 숫자를 뭉개는
+ * 사례가 실측 확인됨).
+ */
+export function checkTimingPreviewHasMonthCount(chemistryTimingPreview: string, highlight: CoupleWolunHighlight): string[] {
+  if (!highlight) return [];
+  const required = highlight.monthsFromNow === 0 ? "이번 달" : `${highlight.monthsFromNow}개월`;
+  if (!chemistryTimingPreview.includes(required)) {
+    return [`chemistryTimingPreview에 정확한 시점 표기("${required}")가 없음 — "약 몇 개월" 같은 뭉갠 표현 대신 코드가 준 정확한 개월 수를 그대로 써야 함`];
+  }
+  return [];
 }

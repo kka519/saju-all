@@ -17,7 +17,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { generateInterpretation } from "@/lib/saju/llm";
+import { generateInterpretationWithNetworkRetry } from "@/lib/saju/llm";
 import type { ReportData } from "../normalize";
 import { extractJsonObject } from "./extract-json";
 import { buildReportPart1Prompt, parseReportPart1Sections, sanitizePart1, type ReportPart1Sections } from "./part1-overview";
@@ -72,7 +72,7 @@ async function callWithRetry<T>(
 - ${prevIssues.join("\n- ")}
 일반론·수사로 채우지 말고 입력 JSON의 수치·간지·십신 근거를 더 인용해 구체적으로 서술하라.`
           : user;
-      const llm = await generateInterpretation({
+      const llm = await generateInterpretationWithNetworkRetry({
         system,
         user: userFinal,
         maxTokens,
@@ -98,7 +98,10 @@ async function callWithRetry<T>(
       }
       prevIssues = issues;
     } catch {
-      // 네트워크/일시적 API 오류(fetch failed, 503 등) — JSON 파싱 실패와 동일하게 재시도 대상.
+      // 네트워크/일시적 API 오류(fetch failed, 429/500/503/529 등)는 이제
+      // generateInterpretationWithNetworkRetry가 이 파트 재시도 예산을 쓰지 않고
+      // 자체 흡수한다(2026-07-17) — 여기 도달하는 건 그 재시도마저 소진된 경우거나
+      // 다른 종류의 예외이므로, 기존과 동일하게 JSON 파싱 실패와 같이 재시도 대상으로 둔다.
       prevIssues = [];
     }
   }

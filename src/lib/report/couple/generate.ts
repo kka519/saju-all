@@ -5,7 +5,7 @@
 // 위반 시 재생성(최대 2회), 용어 위반은 재생성 없이 sanitizeCoupleSections로 즉시 교정.
 // 리포트 런타임 모델: Sonnet 고정(기획서 §0, 원가 전제).
 
-import { generateInterpretation } from "@/lib/saju/llm";
+import { generateInterpretationWithNetworkRetry } from "@/lib/saju/llm";
 import {
   buildCoupleContentPrompt,
   extractAndParseCoupleJSON,
@@ -35,7 +35,7 @@ export async function generateCoupleContentWithRetry(
 
   let lastIssues: string[] = [];
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const llm = await generateInterpretation({
+    const llm = await generateInterpretationWithNetworkRetry({
       system,
       user: attempt === 1 ? user : `${user}\n\n[이전 시도 위반 사항 — 반드시 고쳐서 다시 작성]\n${lastIssues.join("\n")}`,
       provider: "anthropic",
@@ -55,7 +55,7 @@ export async function generateCoupleContentWithRetry(
     }
 
     const { sections: sanitized, replaced } = sanitizeCoupleSections(parsed);
-    const issues = validateCoupleSections(sanitized, input.matrix, input.seunSeries, input.names, typeNames, relationshipType);
+    const issues = validateCoupleSections(sanitized, input.matrix, input.seunSeries, input.names, typeNames, relationshipType, input.wolunHighlight);
 
     // 용어 위반은 sanitize로 이미 교정됐으니 재검사에서 제외 — 세운/호칭/일간인용/분량만
     // 남은 위반이면 재시도, 그마저 다 없으면 통과.

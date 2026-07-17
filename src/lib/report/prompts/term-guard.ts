@@ -161,6 +161,14 @@ function stripEmptyParens(text: string): string {
   return text.replace(/\s?\([\s,·]*\)/g, "");
 }
 
+/** "귀한 도움을 부르는 기운(귀한 도움을 부르는 기운)"처럼 "원어(번역어)" 자기주석을
+ *  쓴 문장에서 TIER3가 원어까지 치환해버려 괄호 앞뒤가 완전히 같은 말로 중복되는
+ *  경우를 정리(화개살 이어붙음 버그와 같은 계열 — 2026-07-16 실측). 괄호 앞 구간과
+ *  괄호 안 내용이 정확히 같으면 괄호를 통째로 제거. */
+function dedupSelfGlossParens(text: string): string {
+  return text.replace(/([^()\n.!?]+)\(\1\)/g, "$1");
+}
+
 function countOccurrences(text: string, term: string): number {
   let count = 0;
   let idx = text.indexOf(term);
@@ -343,6 +351,9 @@ export function sanitizeProse(text: string): { text: string; replaced: string[] 
 
   // "용어(한자)" 자기주석 패턴에서 한자만 제거되고 빈 괄호가 남는 경우 정리.
   result = stripEmptyParens(result);
+  // TIER3 치환이 "원어(번역어)" 자기주석의 원어까지 바꿔버려 괄호 앞뒤가 같은 말로
+  // 중복되는 경우 정리("귀한 도움을 부르는 기운(귀한 도움을 부르는 기운)" 등).
+  result = dedupSelfGlossParens(result);
 
   return { text: result, replaced };
 }

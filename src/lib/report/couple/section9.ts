@@ -144,10 +144,15 @@ export function formatAttractionDevicesForPrompt(
   devices: AttractionDevices,
   names: { self: string; partner: string },
 ): string {
-  const lines: string[] = [`[끌림의 숨은 장치 — 이 판정만 사용, attractionStructure(p6)에 반영]`];
+  const lines: string[] = [
+    `[끌림의 숨은 장치 — 이 판정만 사용, attractionStructure(p6)에 반영]`,
+    `⚠️ 본문에서는 번역어만 단독으로 써라 — "귀한 도움을 부르는 기운(천을귀인)"처럼 원어를`,
+    `괄호로 병기하지 마라. 원어를 다시 언급하면 용어 치환 후 "귀한 도움을 부르는`,
+    `기운(귀한 도움을 부르는 기운)"처럼 같은 말이 괄호 안팎에 중복된다.`,
+  ];
   if (devices.selfGuiinInPartner.length > 0) {
     lines.push(
-      `  ${names.partner}의 ${devices.selfGuiinInPartner.map((g) => g.foundInPillar).join("·")}에 ${names.self}의 천을귀인 지지가 있음 — "설명 안 되는 끌림·이별하기 어려움"의 근거로 언급 가능(본문에서는 번역어 "귀한 도움을 부르는 기운"으로 표현)`,
+      `  ${names.partner}의 ${devices.selfGuiinInPartner.map((g) => g.foundInPillar).join("·")}에 ${names.self}의 천을귀인 지지가 있음 — "설명 안 되는 끌림·이별하기 어려움"의 근거로 언급 가능(본문 표현: "귀한 도움을 부르는 기운" 단독, 괄호 병기 금지)`,
     );
   }
   if (devices.partnerGuiinInSelf.length > 0) {
@@ -159,7 +164,7 @@ export function formatAttractionDevicesForPrompt(
     lines.push(`  천을귀인 교차 없음 — 이 장치는 언급하지 마라`);
   }
   if (devices.sharedGongmang.length > 0) {
-    lines.push(`  두 사람의 공망이 같음(${devices.sharedGongmang.join("·")}) — "묘한 동질감"의 근거로 언급 가능(본문에서는 번역어 "기운이 비어 있는 자리"로 표현)`);
+    lines.push(`  두 사람의 공망이 같음(${devices.sharedGongmang.join("·")}) — "묘한 동질감"의 근거로 언급 가능(본문 표현: "기운이 비어 있는 자리" 단독, 괄호 병기 금지)`);
   } else {
     lines.push(`  공망 교차 없음 — 이 장치는 언급하지 마라`);
   }
