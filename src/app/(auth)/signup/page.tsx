@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
@@ -9,8 +10,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { publicEnv } from "@/lib/env";
+import { getSajuInputCarryover, clearSajuInputCarryover } from "@/lib/saju-input-carryover";
 
 export default function SignupPage() {
+  return (
+    <Suspense>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
+  const search = useSearchParams();
+  const redirectTo = search.get("redirect") ?? "/mypage";
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
@@ -20,7 +32,7 @@ export default function SignupPage() {
     e.preventDefault();
     setLoading(true);
     const supabase = createClient();
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -28,16 +40,37 @@ export default function SignupPage() {
         emailRedirectTo: `${publicEnv.NEXT_PUBLIC_SITE_URL}/auth/callback`,
       },
     });
-    setLoading(false);
     if (error) {
+      setLoading(false);
       toast.error(error.message);
       return;
     }
-    toast.success("가입 완료! 마이페이지로 이동합니다.");
+
+    // 비로그인 상태에서 무료 운세 등에 입력한 사주 정보를 신규 가입 계정에
+    // 이월 저장(지시문_사주입력_프리필_20260721.md §2) — 이후 전 상품에서
+    // 재입력 없이 재사용된다. onboarding/signup/page.tsx와 동일 패턴.
+    const carryover = getSajuInputCarryover();
+    if (data.user && carryover?.birthDate) {
+      await supabase
+        .from("profiles")
+        .update({
+          birth_date: carryover.birthDate,
+          birth_time: carryover.timeUnknown ? null : carryover.birthTime ?? null,
+          time_unknown: carryover.timeUnknown,
+          gender: carryover.gender,
+          calendar: carryover.calendar ?? "solar",
+          is_leap_month: carryover.isLeapMonth,
+        })
+        .eq("id", data.user.id);
+      clearSajuInputCarryover();
+    }
+
+    setLoading(false);
+    toast.success("가입 완료!");
     // router.push+refresh는 signUp()이 쓴 세션 쿠키가 아직 커밋되기 전에
-    // /mypage 서버 컴포넌트가 먼저 읽어 /login으로 튕기는 레이스가 있었다.
+    // 대상 페이지 서버 컴포넌트가 먼저 읽어 /login으로 튕기는 레이스가 있었다.
     // 하드 네비게이션은 새 요청이라 쿠키를 확실히 반영해서 읽는다.
-    window.location.href = "/mypage";
+    window.location.href = redirectTo;
   }
 
   return (
@@ -66,7 +99,12 @@ export default function SignupPage() {
             </Button>
             <p className="text-sm text-center">
               이미 계정이 있으신가요?{" "}
-              <Link href="/login" className="text-primary hover:underline">로그인</Link>
+              <Link
+                href={search.get("redirect") ? `/login?redirect=${encodeURIComponent(search.get("redirect")!)}` : "/login"}
+                className="text-primary hover:underline"
+              >
+                로그인
+              </Link>
             </p>
           </form>
         </CardContent>

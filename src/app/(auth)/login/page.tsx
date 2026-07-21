@@ -63,7 +63,12 @@ function LoginForm() {
               {loading ? "로그인 중..." : "로그인"}
             </Button>
             <div className="flex justify-between text-sm">
-              <Link href="/signup" className="text-muted-foreground hover:text-foreground">회원가입</Link>
+              <Link
+                href={search.get("redirect") ? `/signup?redirect=${encodeURIComponent(search.get("redirect")!)}` : "/signup"}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                회원가입
+              </Link>
               <Link href="/reset" className="text-muted-foreground hover:text-foreground">비밀번호 재설정</Link>
             </div>
           </form>

@@ -1,3 +1,4 @@
+import type { ComponentProps } from "react";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
@@ -19,6 +20,7 @@ export default async function ProductDetailPage({
   let product: Product | null;
   let reviews: Review[] | null = null;
   let user: Awaited<ReturnType<typeof getCurrentUser>> = null;
+  let initialValues: ComponentProps<typeof SajuForm>["initialValues"];
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -41,6 +43,27 @@ export default async function ProductDetailPage({
       reviews = r;
     }
     user = await getCurrentUser();
+
+    // 사주 입력 프리필(지시문_사주입력_프리필_20260721.md §1) — 소스 우선순위 1:
+    // 로그인 사용자의 profiles 저장값. 이번 구현 범위는 오늘의 운세로 한정.
+    if (user && product?.slug === "today-fortune") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("display_name, birth_date, birth_time, time_unknown, gender, calendar, is_leap_month")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (profile?.birth_date) {
+        initialValues = {
+          name: profile.display_name ?? undefined,
+          birthDate: profile.birth_date,
+          birthTime: profile.birth_time,
+          timeUnknown: profile.time_unknown,
+          gender: profile.gender ?? undefined,
+          calendar: profile.calendar ?? undefined,
+          isLeapMonth: profile.is_leap_month,
+        };
+      }
+    }
   } else {
     const seed = productsSeed.find((p) => p.slug === slug && p.is_active);
     product = seed ? { id: seed.slug, ...seed } : null;
@@ -82,6 +105,7 @@ export default async function ProductDetailPage({
           productSlug={product.slug}
           isLoggedIn={!!user}
           requiresPartner={product.slug === "couple-match"}
+          initialValues={initialValues}
         />
       </section>
 

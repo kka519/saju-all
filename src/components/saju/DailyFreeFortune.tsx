@@ -7,6 +7,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { saveSajuInputCarryover } from "@/lib/saju-input-carryover";
 
 // 잠금 티저 구조(지시문_무료운세_잠금티저_20260721.md §1) — 서버가 공개 블록은
 // 실제 텍스트, 잠금 블록(locked.*)은 더미 placeholder로 이미 치환해 내려준다.
@@ -142,6 +143,17 @@ export function DailyFreeFortune({
 
   function handleSubmit() {
     if (!canSubmit) return;
+    // 유료 결제 폼 프리필용 이월(지시문_사주입력_프리필_20260721.md §1②) —
+    // 직접 타이핑한 값도 프로필 저장값과 동일하게 재사용될 수 있도록 세션에
+    // 남긴다. 서버 저장은 하지 않음(sessionStorage만, saju-input-carryover.ts).
+    saveSajuInputCarryover({
+      birthDate: `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`,
+      birthTime: hourUnknown || !hour || !minute ? null : `${hour.padStart(2, "0")}:${minute.padStart(2, "0")}`,
+      timeUnknown: hourUnknown,
+      gender,
+      calendar: calendar === "양력" ? "solar" : "lunar",
+      isLeapMonth: false,
+    });
     void callApi({
       birthYear: year,
       birthMonth: month,
