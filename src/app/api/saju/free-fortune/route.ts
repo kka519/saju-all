@@ -31,7 +31,7 @@ import { fetchDayGanji, analyzeDayTone, findGoldenSijin } from "@/lib/saju/today
 import { computeSijinTable } from "@/lib/saju/sijin";
 import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
 import { computeElementMetaphor } from "@/lib/saju/element-metaphor";
-import { generateTodayFortuneWithRetry, formatTodayFortuneAsMarkdown } from "@/lib/saju/today-fortune-prompt";
+import { generateTodayFortuneWithRetry, makeLockedPlaceholder } from "@/lib/saju/today-fortune-prompt";
 import type { Oheng } from "@/lib/saju/derived";
 import { getCurrentUser } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
@@ -231,7 +231,7 @@ export async function POST(req: NextRequest) {
 
   // 3) LLM — free variant(초3 언어 + 본문 전체 용어 0개 + 오행 비유), CTA 없음(화면에 별도 버튼).
   try {
-    const { result } = await generateTodayFortuneWithRetry({
+    const { result, provider, model, attempts } = await generateTodayFortuneWithRetry({
       myeongsik,
       manseryeokText,
       birthDate,
@@ -247,12 +247,32 @@ export async function POST(req: NextRequest) {
       variant: "free",
       elementMetaphor,
     });
-    const fortune = formatTodayFortuneAsMarkdown(result);
-    await recordFreeFortuneUsage({ identityKey, ip });
+
+    // 원가 관측(지시문_무료운세_잠금티저_20260721.md §5) — 무료/유료 공통 구조화 로그.
+    console.log(JSON.stringify({
+      event: "today-fortune-generated", variant: "free", attempts, provider, model, dayTone: result.dayTone,
+    }));
+
+    // 실컨텐츠는 DB에만(§1) — 응답에는 잠금 블록을 더미로 치환해 내려보낸다.
+    await recordFreeFortuneUsage({ identityKey, ip, sections: result, attemptCount: attempts, provider, model });
+
     return NextResponse.json({
       ok: true as const,
-      fortune,
-      meta: { dayTone: result.dayTone },
+      fortune: {
+        dayTone: result.dayTone,
+        headline: result.headline,
+        psychSnipe: result.psychSnipe,
+        weatherReason: result.weatherReason,
+        goldenTimeLabel: result.goldenTimeLabel,
+        locked: {
+          flowMorning: makeLockedPlaceholder(result.flow.morning.length),
+          flowAfternoon: makeLockedPlaceholder(result.flow.afternoon.length),
+          flowEvening: makeLockedPlaceholder(result.flow.evening.length),
+          pointTake: makeLockedPlaceholder(result.point.take.length),
+          pointAvoid: makeLockedPlaceholder(result.point.avoid.length),
+          tomorrow: makeLockedPlaceholder(result.tomorrow.length),
+        },
+      },
     });
   } catch (err) {
     return NextResponse.json(

@@ -7,10 +7,28 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { SectionMarkdown } from "@/components/saju/SectionMarkdown";
 
+// 잠금 티저 구조(지시문_무료운세_잠금티저_20260721.md §1) — 서버가 공개 블록은
+// 실제 텍스트, 잠금 블록(locked.*)은 더미 placeholder로 이미 치환해 내려준다.
+// 실제 흐름/포인트/내일 텍스트는 이 컴포넌트에 절대 도달하지 않는다.
+type FreeFortuneLocked = {
+  flowMorning: string;
+  flowAfternoon: string;
+  flowEvening: string;
+  pointTake: string;
+  pointAvoid: string;
+  tomorrow: string;
+};
+type FreeFortuneData = {
+  dayTone: "good" | "mixed" | "caution";
+  headline: string;
+  psychSnipe: string;
+  weatherReason: string;
+  goldenTimeLabel: string;
+  locked: FreeFortuneLocked;
+};
 type ApiResponse =
-  | { ok: true; fortune: string }
+  | { ok: true; fortune: FreeFortuneData }
   | { ok: false; stage: string; error: string };
 
 type State = "form" | "loading" | "success" | "rate-limited" | "error";
@@ -23,6 +41,19 @@ function range(start: number, end: number, step = 1): number[] {
   if (step > 0) for (let i = start; i <= end; i += step) out.push(i);
   else for (let i = start; i >= end; i += step) out.push(i);
   return out;
+}
+
+// 잠금 블록 한 줄 — 라벨은 코드가 렌더(콜론 스타일), 서버가 이미 더미로 치환한
+// placeholder를 블러 처리해 "내용이 있어 보이는" 티저 효과만 낸다. 실제 텍스트는
+// 애초에 이 컴포넌트에 전달되지 않는다(서버에서 치환됨).
+function LockedLine({ label, text }: { label?: string; text: string }) {
+  return (
+    <p className="text-sm text-night-fg-soft leading-relaxed" aria-label="유료 결제 후 확인 가능한 잠금 콘텐츠">
+      {label ? <span className="font-semibold text-night-fg">{label} : </span> : null}
+      <span aria-hidden="true" className="select-none blur-[4px]">{text}</span>
+      <span className="ml-1 align-middle" aria-hidden="true">🔒</span>
+    </p>
+  );
 }
 
 type BirthInfoPayload = {
@@ -43,7 +74,7 @@ export function DailyFreeFortune({
   displayName: string | null;
 }) {
   const [state, setState] = useState<State>(hasSavedBirthInfo ? "loading" : "form");
-  const [fortune, setFortune] = useState("");
+  const [fortune, setFortune] = useState<FreeFortuneData | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
 
   // 입력 폼 상태(저장된 생년월일이 없을 때만 사용)
@@ -178,7 +209,7 @@ export function DailyFreeFortune({
     );
   }
 
-  if (state === "success") {
+  if (state === "success" && fortune) {
     return (
       <div className="space-y-6">
         <Image
@@ -189,15 +220,43 @@ export function DailyFreeFortune({
           className="mx-auto rounded-full ring-1 ring-starlight/30"
         />
         <h1 className="text-xl font-semibold text-night-fg">오늘의 무료 운세</h1>
-        <div className="rounded-2xl border border-night-border bg-night-secondary p-5 text-left">
-          <SectionMarkdown markdown={fortune} />
+
+        {/* 공개 블록 — 헤드라인·심리 저격·날씨(오행 비유)·골든타임 시각 */}
+        <div className="rounded-2xl border border-night-border bg-night-secondary p-5 text-left space-y-4">
+          <p className="text-lg font-semibold leading-snug text-night-fg">{fortune.headline}</p>
+          <p className="text-sm text-night-fg-soft leading-relaxed">{fortune.psychSnipe}</p>
+          <p className="text-sm text-night-fg-soft leading-relaxed">{fortune.weatherReason}</p>
+          <p className="inline-flex items-center rounded-full bg-starlight/15 px-3 py-1 text-xs font-semibold text-starlight">
+            골든타임 : {fortune.goldenTimeLabel}
+          </p>
         </div>
-        <Link
-          href="/products"
-          className="block w-full h-12 rounded-full bg-starlight text-night-primary text-base font-medium leading-[3rem] hover:bg-starlight-soft transition-colors"
-        >
-          더 깊은 풀이 보러 가기
-        </Link>
+
+        {/* 잠금 블록 — 시간대 상세/포인트/내일 예고는 더미로 블러 처리 */}
+        <div className="rounded-2xl border border-night-border bg-night-secondary p-5 text-left space-y-4">
+          <p className="text-xs font-mono text-night-fg-muted">오늘의 흐름</p>
+          <LockedLine label="오전" text={fortune.locked.flowMorning} />
+          <LockedLine label="오후" text={fortune.locked.flowAfternoon} />
+          <LockedLine label="저녁" text={fortune.locked.flowEvening} />
+
+          <p className="text-xs font-mono text-night-fg-muted pt-2">오늘의 포인트</p>
+          <LockedLine label="취할 것" text={fortune.locked.pointTake} />
+          <LockedLine label="피할 것" text={fortune.locked.pointAvoid} />
+
+          <p className="text-xs font-mono text-night-fg-muted pt-2">내일 예고</p>
+          <LockedLine text={fortune.locked.tomorrow} />
+
+          <div className="pt-2 border-t border-night-border/60 space-y-3">
+            <p className="text-sm text-night-fg-soft">
+              오전·오후·저녁 흐름과 오늘의 처방은 880원 풀이에서 열어보세요
+            </p>
+            <Link
+              href="/products/today-fortune"
+              className="block w-full h-12 rounded-full bg-starlight text-night-primary text-base font-medium leading-[3rem] hover:bg-starlight-soft transition-colors"
+            >
+              880원 풀이 보러 가기
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

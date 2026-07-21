@@ -174,7 +174,7 @@ export async function POST(request: NextRequest) {
       const targetSlug = routeCtaSlug(input.concerns);
       const ctaTemplateId = pickCtaTemplate(toCtaRouting(targetSlug), dayTone);
 
-      const { result: sections, provider, model } = await generateTodayFortuneWithRetry({
+      const { result: sections, provider, model, attempts } = await generateTodayFortuneWithRetry({
         myeongsik,
         manseryeokText,
         birthDate: input.birth_date,
@@ -188,6 +188,11 @@ export async function POST(request: NextRequest) {
         goldenSijin,
         ctaTemplateId,
       });
+
+      // 원가 관측(지시문_무료운세_잠금티저_20260721.md §5) — 무료/유료 공통 구조화 로그.
+      console.log(JSON.stringify({
+        event: "today-fortune-generated", variant: "paid", attempts, provider, model, dayTone: sections.dayTone,
+      }));
 
       // interpretation_md 는 not null 컬럼이라 감사/폴백용으로 8블록을 펼친 마크다운도 채운다.
       // free-fortune/route.ts와 동일 포맷터 재사용 — 두 경로의 마크다운 조립이 갈라지지 않게.

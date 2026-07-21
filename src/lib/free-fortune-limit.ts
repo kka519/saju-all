@@ -67,13 +67,30 @@ export async function checkFreeFortuneLimit(params: {
   return { allowed: true };
 }
 
-/** 생성 성공 후에만 호출 — 실패한 시도는 하루 소진으로 치지 않는다. */
+/**
+ * 생성 성공 후에만 호출 — 실패한 시도는 하루 소진으로 치지 않는다.
+ * sections는 실제 8블록 생성물 전문(잠금 티저 지시문 §①) — 응답 바디에는
+ * 절대 내려보내지 않고 이 테이블(service_role 전용 RLS)에만 남긴다.
+ * attemptCount/provider/model은 원가 관측용(§⑤).
+ */
 export async function recordFreeFortuneUsage(params: {
   identityKey: string;
   ip: string;
+  sections?: unknown;
+  attemptCount?: number;
+  provider?: string;
+  model?: string;
 }): Promise<void> {
   const service = createServiceClient();
   const day = getTodayKST();
   // identity_key 유니크 제약과 동시에 걸리는 경합은 무시(어차피 하루 1회 의도와 부합).
-  await service.from("free_fortune_usage").insert({ day, identity_key: params.identityKey, ip: params.ip });
+  await service.from("free_fortune_usage").insert({
+    day,
+    identity_key: params.identityKey,
+    ip: params.ip,
+    sections: (params.sections ?? null) as never,
+    attempt_count: params.attemptCount ?? null,
+    provider: params.provider ?? null,
+    model: params.model ?? null,
+  });
 }

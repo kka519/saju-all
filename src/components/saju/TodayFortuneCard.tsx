@@ -50,12 +50,12 @@ export function TodayFortuneCard({ data }: { data: TodayFortuneSections }) {
       <section className="rounded-lg border border-night-border bg-night-secondary p-6">
         <p className="text-xs font-mono text-night-fg-muted mb-3">오늘의 흐름</p>
         <dl className="space-y-2 text-sm text-night-fg-soft">
-          <div><dt className="inline font-semibold text-night-fg">오전 · </dt><dd className="inline">{data.flow.morning}</dd></div>
-          <div><dt className="inline font-semibold text-night-fg">오후 · </dt><dd className="inline">{data.flow.afternoon}</dd></div>
-          <div><dt className="inline font-semibold text-night-fg">저녁 · </dt><dd className="inline">{data.flow.evening}</dd></div>
+          <div><dt className="inline font-semibold text-night-fg">오전 : </dt><dd className="inline">{data.flow.morning}</dd></div>
+          <div><dt className="inline font-semibold text-night-fg">오후 : </dt><dd className="inline">{data.flow.afternoon}</dd></div>
+          <div><dt className="inline font-semibold text-night-fg">저녁 : </dt><dd className="inline">{data.flow.evening}</dd></div>
         </dl>
         <p className="mt-3 inline-flex items-center rounded-full bg-starlight/15 px-3 py-1 text-xs font-semibold text-starlight">
-          ⏰ 골든타임 · {data.goldenTimeLabel}
+          골든타임 : {data.goldenTimeLabel}
         </p>
       </section>
 

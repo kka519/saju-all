@@ -135,12 +135,17 @@ type LifeAnalystReportRow = {
 };
 
 // 0013 마이그레이션 — 무료 운세 하루 1회 제한 사용 기록.
+// 0014 — 잠금 티저 실컨텐츠(sections) + LLM 호출 관측(attempt_count/provider/model) 추가.
 type FreeFortuneUsageRow = {
   id: string;
   day: string;
   identity_key: string;
   ip: string | null;
   created_at: string;
+  sections: Json | null;
+  attempt_count: number | null;
+  provider: string | null;
+  model: string | null;
 };
 
 // 0012 마이그레이션 — "커플 궁합 리포트"(20페이지 PDF). life_analyst_reports 와 동일
@@ -353,6 +358,10 @@ export type Database = {
           identity_key: string;
           ip?: string | null;
           created_at?: string;
+          sections?: Json | null;
+          attempt_count?: number | null;
+          provider?: string | null;
+          model?: string | null;
         };
         Update: Partial<FreeFortuneUsageRow>;
         Relationships: [];

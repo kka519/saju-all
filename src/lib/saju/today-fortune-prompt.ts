@@ -49,6 +49,13 @@ function isNonEmptyString(v: unknown): v is string {
   return typeof v === "string" && v.trim().length > 0;
 }
 
+// 물결 표기 정규화(지시문_무료운세_잠금티저_20260721.md §3) — LLM이 "~~"(마크다운
+// 취소선으로 오렌더됨)나 유사문자(〜/∼)를 섞어 쓰는 사례가 실측 확인돼 파싱
+// 직후, 검증(글자수 게이트 포함) 전에 전 필드 일괄 적용한다.
+function normalizeTildes(text: string): string {
+  return text.replace(/~~+/g, "~").replace(/[〜∼]/g, "~");
+}
+
 export function parseTodayFortuneSections(obj: unknown): TodayFortuneSections | null {
   if (!obj || typeof obj !== "object") return null;
   const o = obj as Record<string, unknown>;
@@ -70,15 +77,19 @@ export function parseTodayFortuneSections(obj: unknown): TodayFortuneSections | 
 
   return {
     dayTone: o.dayTone as DayTone,
-    headline: o.headline as string,
-    psychSnipe: o.psychSnipe as string,
-    weatherReason: o.weatherReason as string,
-    flow: { morning: flow.morning as string, afternoon: flow.afternoon as string, evening: flow.evening as string },
-    goldenTimeLabel: o.goldenTimeLabel as string,
-    point: { take: point.take as string, avoid: point.avoid as string },
-    check: o.check as string,
-    todaySummarySentence: o.todaySummarySentence as string | undefined,
-    tomorrow: o.tomorrow as string,
+    headline: normalizeTildes(o.headline as string),
+    psychSnipe: normalizeTildes(o.psychSnipe as string),
+    weatherReason: normalizeTildes(o.weatherReason as string),
+    flow: {
+      morning: normalizeTildes(flow.morning as string),
+      afternoon: normalizeTildes(flow.afternoon as string),
+      evening: normalizeTildes(flow.evening as string),
+    },
+    goldenTimeLabel: normalizeTildes(o.goldenTimeLabel as string),
+    point: { take: normalizeTildes(point.take as string), avoid: normalizeTildes(point.avoid as string) },
+    check: normalizeTildes(o.check as string),
+    todaySummarySentence: isNonEmptyString(o.todaySummarySentence) ? normalizeTildes(o.todaySummarySentence) : undefined,
+    tomorrow: normalizeTildes(o.tomorrow as string),
   };
 }
 
@@ -180,6 +191,36 @@ export function validateTodayFortune(
 
   if (!s.goldenTimeLabel.includes(expectedGoldenTimeLabel)) {
     issues.push(`goldenTimeLabel이 코드가 계산한 골든타임("${expectedGoldenTimeLabel}")을 그대로 인용하지 않았다 — 이 문구를 그대로 포함시켜라`);
+  }
+
+  // ── 라벨 중복 게이트(지시문_무료운세_잠금티저_20260721.md §2) ──
+  // "오전"/"오후"/"저녁"/"골든타임" 라벨은 화면에서 코드가 렌더한다 — LLM 본문이
+  // 같은 단어로 시작하면 "오전 : 오전 9시부터..."처럼 중복돼 보인다. 유·무료
+  // 공통 적용(공유 파이프라인 품질 문제).
+  const LABEL_START_RE = /^(오전|오후|저녁|골든타임)/;
+  if (LABEL_START_RE.test(s.flow.morning.trim())) {
+    issues.push(`flow.morning이 "오전"으로 시작한다 — 라벨은 화면에서 별도로 붙으니 본문은 라벨 단어 없이 바로 내용으로 시작해라`);
+  }
+  if (LABEL_START_RE.test(s.flow.afternoon.trim())) {
+    issues.push(`flow.afternoon이 "오후"로 시작한다 — 라벨은 화면에서 별도로 붙으니 본문은 라벨 단어 없이 바로 내용으로 시작해라`);
+  }
+  if (LABEL_START_RE.test(s.flow.evening.trim())) {
+    issues.push(`flow.evening이 "저녁"으로 시작한다 — 라벨은 화면에서 별도로 붙으니 본문은 라벨 단어 없이 바로 내용으로 시작해라`);
+  }
+
+  // ── URL/링크 누출 게이트(§4) ── CTA 링크는 코드 컴포넌트로만 렌더한다 — LLM
+  // 본문에 URL이 등장하면(개발 중 http://localhost:3000/products 누출 실측 확인)
+  // 그대로 화면에 찍힌다. 유·무료 공통, 8블록 전체 대상.
+  const URL_RE = /https?:\/\/|www\.|localhost/i;
+  const allFieldsForUrlCheck = [
+    ["headline", s.headline], ["psychSnipe", s.psychSnipe], ["weatherReason", s.weatherReason],
+    ["flow.morning", s.flow.morning], ["flow.afternoon", s.flow.afternoon], ["flow.evening", s.flow.evening],
+    ["point.take", s.point.take], ["point.avoid", s.point.avoid], ["check", s.check], ["tomorrow", s.tomorrow],
+  ] as const;
+  for (const [field, value] of allFieldsForUrlCheck) {
+    if (URL_RE.test(value)) {
+      issues.push(`${field}에 URL/링크가 등장했다 — 본문에 절대 URL을 쓰지 마라. CTA·링크는 화면이 별도로 붙인다`);
+    }
   }
 
   const needsSummary = CTA_TEMPLATES[ctaTemplateId].needsSummary;
@@ -415,7 +456,10 @@ ${elementMetaphorBlock}${fewShotBlock}${freeLanguageBlock}
 - flow: ④ 오전/오후/저녁 각 2문장(총 4문장 이상). 위 [오늘 12시진] 표에서 해당 시간대
   시진 간지를 근거로 삼아 서술(오전=인시~사시, 오후=오시~신시, 저녁=유시~해시 대역
   중 대표 시진 선택)하되,${isFree ? " 시진 이름(자시/축시/인시/묘시/진시/사시/오시/미시/신시/유시/술시/해시)은 명리 용어이므로 절대 쓰지 말고 반드시 현대 시간(예: \"오전 9시~11시\")으로만 표현하라." : " 시진 이름을 그대로 언급해도 된다."}
-  위에서 지정한 골든타임 문구는 해당 시간대 서술 안에 자연스럽게 포함.
+  위에서 지정한 골든타임 문구는 해당 시간대 서술 안에 자연스럽게 포함. ⚠️ "오전"/"오후"/
+  "저녁" 라벨은 화면이 별도로 붙인다 — morning/afternoon/evening 각 문장의 첫 단어를
+  "오전"/"오후"/"저녁"으로 시작하지 마라. 라벨 단어 없이 곧바로 시각으로 시작해라
+  (틀림: "오전 9시부터 12시까지는..." / 맞음: "9시부터 12시까지는...").
 - goldenTimeLabel: 위 [골든타임]에서 코드가 준 시간대 문구를 그대로 복사한다.
 - point: ⑤ 오늘의 포인트 2영역. take(취할 것, 3~4문장)와 avoid(피할 것, 3~4문장) 각각
   구체적 행동 단위로 쓴다(예: "10만원 넘는 결제는 내일로 미루세요"). 저녁에 스스로 검증
@@ -431,6 +475,9 @@ ${ctaFieldInstruction} (⑦ CTA)
 - 모든 간지·시진·톤·골든타임은 위 데이터 블록 값을 그대로 인용 — 재계산·추측·재판정 금지.
 - CTA 문구는 절대 쓰지 마라 — CTA는 코드가 별도 템플릿으로 조립한다(위 todaySummarySentence
   지시를 따르는 경우 제외).
+- URL/링크(http, www, 도메인 주소 등)를 본문 어디에도 절대 쓰지 마라 — 버튼·링크는
+  화면이 별도 컴포넌트로 붙인다.
+- 물결표는 항상 반각 "~" 한 글자만 사용한다("~~"나 "〜","∼" 같은 유사 문자 금지).
 
 [출력 형식 — 매우 중요]
 반드시 아래 JSON 객체 하나로만 응답한다. 코드블록 마커 없이 { 로 시작해 } 로 끝나는 순수 JSON:
@@ -451,12 +498,24 @@ JSON 외 다른 텍스트 절대 추가 금지.`;
   return { system: SYSTEM_BASE, user };
 }
 
+/**
+ * 잠금 블록용 더미 placeholder(지시문_무료운세_잠금티저_20260721.md §1) — 실제
+ * 생성 텍스트 대신 내려보내 블러 처리했을 때 "내용이 있어 보이는" 길이감만
+ * 재현한다. 의미·숫자·간지 등 실제 정보는 전혀 담지 않는다.
+ */
+const LOCKED_PLACEHOLDER_PHRASE = "이 안에는 그대만을 위한 오늘의 이야기가 담겨 있어요. ";
+export function makeLockedPlaceholder(realLength: number): string {
+  if (realLength <= 0) return "";
+  const repeated = LOCKED_PLACEHOLDER_PHRASE.repeat(Math.ceil(realLength / LOCKED_PLACEHOLDER_PHRASE.length));
+  return repeated.slice(0, realLength);
+}
+
 // 게이트 종류 증가(용어 제로/골든타임/CTA요약 등)에 맞춰 여유를 더 둠.
 const MAX_ATTEMPTS = 5;
 
 export async function generateTodayFortuneWithRetry(
   input: TodayFortunePromptInput,
-): Promise<{ result: TodayFortuneResult; provider: string; model: string }> {
+): Promise<{ result: TodayFortuneResult; provider: string; model: string; attempts: number }> {
   let prevIssues: string[] = [];
   let lastText = "";
   let provider = "";
@@ -492,7 +551,7 @@ export async function generateTodayFortuneWithRetry(
     const issues = validateTodayFortune(parsed, input.dayTone, input.ctaTemplateId, input.goldenSijin.timeRangeLabel, validateOpts);
     if (issues.length === 0) {
       const teaserCta = assembleCta(input.ctaTemplateId, parsed.todaySummarySentence);
-      return { result: { ...parsed, teaserCta }, provider, model };
+      return { result: { ...parsed, teaserCta }, provider, model, attempts: attempt + 1 };
     }
     console.warn(`[today-fortune retry] attempt ${attempt + 1} 위반: ${issues.join(" / ")}`);
     prevIssues = issues;
