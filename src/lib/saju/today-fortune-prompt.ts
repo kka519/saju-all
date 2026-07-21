@@ -18,6 +18,7 @@ import { checkMinLengths, FORBIDDEN_TERMS, TRANSLATE_FIRST_TERMS, type FieldRang
 import type { SijinEntry } from "./sijin";
 import type { DayGanji, DayTone, DayToneRelation, GoldenSijinResult } from "./today-ganji";
 import { CTA_TEMPLATES, assembleCta, type CtaTemplateId } from "./cta-templates";
+import { formatElementMetaphorForPrompt, type ElementMetaphor } from "./element-metaphor";
 
 export type TodayFortuneSections = {
   dayTone: DayTone;
@@ -35,6 +36,12 @@ export type TodayFortuneSections = {
 export type TodayFortuneResult = TodayFortuneSections & {
   teaserCta: { teaser: string; ctaLabel: string };
 };
+
+// "paid" = 유료 ₩880 오늘의 운세(기존 동작, 기본값). "free" = 무료 운세 미리보기 —
+// 초3 언어 + 본문 전체 용어 0개 + 오행 비유 요구사항이 추가로 적용된다
+// (지시문_무료운세_톤수정_20260721.md §3-2). paid 호출부는 variant를 생략하면
+// 기존과 완전히 동일하게 동작한다.
+export type TodayFortuneVariant = "paid" | "free";
 
 const DAY_TONE_VALUES: readonly DayTone[] = ["good", "mixed", "caution"];
 
@@ -75,18 +82,22 @@ export function parseTodayFortuneSections(obj: unknown): TodayFortuneSections | 
   };
 }
 
-// ── 헤드라인 "명리 용어 0개" 게이트 — term-guard.ts 목록 재사용 ──
-// report의 "티어 허용치" 방식과 달리 today-fortune 헤드라인은 한 개도 허용하지
-// 않는다(해설가이드: "명리 용어 0개, 생활 장면 언어"). 단발 한글자 급 표현(충/합
-// 등)은 일상어와 충돌 위험이 커서 제외하고, 식별력 있는 다자 용어만 검사한다.
+// ── "명리 용어 0개" 게이트 — term-guard.ts 목록 재사용 ──
+// report의 "티어 허용치"(최대 3회 허용) 방식과 달리 today-fortune은 한 개도
+// 허용하지 않는다(해설가이드: "명리 용어 0개, 생활 장면 언어"). 단발 한글자 급
+// 표현(충/합 등)은 일상어와 충돌 위험이 커서 제외하고, 식별력 있는 다자 용어만
+// 검사한다. 유료는 headline에만, 무료(free variant)는 본문 전체에 적용한다.
 const BASE_JARGON_TERMS = [
   "사주", "명식", "일간", "오행", "대운", "세운", "월운", "십성",
   "합충", "신강", "신약", "용신", "희신", "기신", "격국", "공망", "지장간",
+  // 12시진 명칭 — free variant 실측(2026-07-21)에서 "사시(오전 9시 30분~...)"처럼
+  // 시진 이름을 그대로 인용하는 사례가 나와 추가. 시진 자체가 명리 전문용어다.
+  "자시", "축시", "인시", "묘시", "진시", "사시", "오시", "미시", "신시", "유시", "술시", "해시",
 ];
 const HEADLINE_JARGON_TERMS = Array.from(new Set([...FORBIDDEN_TERMS, ...TRANSLATE_FIRST_TERMS, ...BASE_JARGON_TERMS]));
 
-function findHeadlineJargon(headline: string): string[] {
-  return HEADLINE_JARGON_TERMS.filter((t) => headline.includes(t));
+function findJargon(text: string): string[] {
+  return HEADLINE_JARGON_TERMS.filter((t) => text.includes(t));
 }
 
 const CTA_TRIGGER_RE = /보러\s*가기|확인하기|지금\s*확인|자세히\s*보기|알아보기/;
@@ -122,24 +133,44 @@ const PART_RANGES: FieldRanges = {
   tomorrow: { min: 60, max: 120 },
 };
 
+// free variant 전용 — 초3 언어(짧은 문장, 한자·용어 0개)는 유료의 용어 밀집
+// 문장보다 자연스럽게 글자 수가 적게 나온다. 실측(2026-07-21, 레퍼런스 명식
+// 음력 1971-04-25 10:30 여성)에서 유료 기준 하한으로 5회 연속 재시도가
+// 소진돼 확인됨 — 하한만 완화, 상한은 유지.
+const FREE_PART_RANGES: FieldRanges = {
+  headline: { min: 30, max: 70 },
+  psychSnipe: { min: 75, max: 260 },
+  weatherReason: { min: 60, max: 140 },
+  flowMorning: { min: 70, max: 180 },
+  flowAfternoon: { min: 70, max: 180 },
+  flowEvening: { min: 70, max: 180 },
+  pointTake: { min: 120, max: 320 },
+  pointAvoid: { min: 120, max: 320 },
+  check: { min: 25, max: 70 },
+  tomorrow: { min: 45, max: 120 },
+};
+
 export function validateTodayFortune(
   s: TodayFortuneSections,
   expectedTone: DayTone,
   ctaTemplateId: CtaTemplateId,
   expectedGoldenTimeLabel: string,
+  opts?: { variant?: TodayFortuneVariant; elementMetaphor?: ElementMetaphor },
 ): string[] {
   const issues: string[] = [];
+  const isFree = opts?.variant === "free";
 
   if (s.dayTone !== expectedTone) {
     issues.push(`dayTone이 "${s.dayTone}"인데 코드가 계산한 판정은 "${expectedTone}"이다 — dayTone 필드를 "${expectedTone}"로 정확히 맞추고, 본문 톤 전체를 이 판정에 맞게 다시 써라`);
   }
 
-  const jargonHits = findHeadlineJargon(s.headline);
+  const jargonHits = findJargon(s.headline);
   if (jargonHits.length > 0) {
     issues.push(`headline에 명리 용어가 등장했다(${jargonHits.join(",")}) — 헤드라인은 명리 용어 0개, 생활 장면 언어로만 써라`);
   }
 
-  const copied = findCopiedSubstring(s.psychSnipe, FEW_SHOT_PSYCH_SNIPE_REFERENCE);
+  const psychSnipeReference = isFree ? FREE_FEW_SHOT_PSYCH_SNIPE_REFERENCE : FEW_SHOT_PSYCH_SNIPE_REFERENCE;
+  const copied = findCopiedSubstring(s.psychSnipe, psychSnipeReference);
   if (copied) {
     issues.push(`psychSnipe가 few-shot 예시와 30자 이상 그대로 겹친다("${copied}") — few-shot은 문체·구조 참고용일 뿐, 이 명식 고유의 성격 진단을 새로 도출해라(베끼지 마라)`);
   }
@@ -165,6 +196,28 @@ export function validateTodayFortune(
     }
   }
 
+  if (isFree) {
+    const fullBody = [
+      s.headline, s.psychSnipe, s.weatherReason,
+      s.flow.morning, s.flow.afternoon, s.flow.evening,
+      s.point.take, s.point.avoid, s.check, s.tomorrow,
+    ].join(" ");
+
+    const bodyJargonHits = findJargon(fullBody);
+    if (bodyJargonHits.length > 0) {
+      issues.push(`본문(headline 제외 포함 전체)에 명리 용어가 등장했다(${bodyJargonHits.join(",")}) — 무료 운세는 명리 용어·한자·괄호 병기를 단 하나도 쓰면 안 된다. 초등학교 3학년도 이해할 수 있는 순수 생활 언어로 다시 써라`);
+    }
+
+    if (opts?.elementMetaphor && !s.weatherReason.includes(opts.elementMetaphor.metaphorNoun)) {
+      issues.push(`weatherReason에 오늘의 비유 명사("${opts.elementMetaphor.metaphorNoun}")가 포함돼 있지 않다 — 아래 [오행 비유] 블록의 문장을 그대로 또는 근접하게 인용해라`);
+    }
+
+    // "오늘/지금/이번" 시간어 최소 횟수 — 사장님 지시: 임계값을 추측하지 않고
+    // 우선 로그만 남긴다(실측 데이터 없이 하드 게이트로 승격하면 과탐 위험).
+    const timeAnchorCount = (fullBody.match(/오늘|지금|이번/g) ?? []).length;
+    console.warn(`[today-fortune free-variant] 시간어("오늘/지금/이번") 등장 ${timeAnchorCount}회 — 임계값 미정, 로그만`);
+  }
+
   const lengthIssues = checkMinLengths(
     {
       headline: s.headline,
@@ -178,7 +231,7 @@ export function validateTodayFortune(
       check: s.check,
       tomorrow: s.tomorrow,
     },
-    PART_RANGES,
+    isFree ? FREE_PART_RANGES : PART_RANGES,
   );
   issues.push(...lengthIssues);
 
@@ -186,8 +239,9 @@ export function validateTodayFortune(
     s.headline, s.psychSnipe, s.weatherReason, s.flow.morning, s.flow.afternoon, s.flow.evening,
     s.point.take, s.point.avoid, s.check, s.todaySummarySentence ?? "", s.tomorrow,
   ].join("").length;
-  if (totalChars < 1000 || totalChars > 1550) {
-    issues.push(`전체 분량 ${totalChars}자 (목표 1,100~1,400자, 허용 1,000~1,550자) — 목표 범위에 맞게 다시 작성하라`);
+  const [totalMin, totalMax] = isFree ? [800, 1550] : [1000, 1550];
+  if (totalChars < totalMin || totalChars > totalMax) {
+    issues.push(`전체 분량 ${totalChars}자 (허용 ${totalMin.toLocaleString()}~${totalMax.toLocaleString()}자) — 범위에 맞게 다시 작성하라`);
   }
 
   return issues;
@@ -231,7 +285,33 @@ CTA(L2 템플릿): 오늘은 하루의 날씨만 봤어요. 날씨 말고 기후
 const FEW_SHOT_WARNING =
   "위 샘플은 문체·밀도·구조의 기준일 뿐이다. 간지(기축·경인), 성격 진단(혼자 감당하는 유형), 행동 팁(내가 할게 카운트)은 이 명식 전용 — 절대 복사하지 말고, 입력된 명식과 오늘 일진에서 새로 도출하라.";
 
-export function buildTodayFortunePrompt(input: {
+// ── 무료 운세 전용 few-shot ──────────────────────────────────────────
+// 검수 대기 — 사장님 확인 전. 위 유료 FEW_SHOT_EXAMPLE은 "명식"이라는 명리
+// 용어를 포함해 무료 운세의 본문 전체 용어 0개 게이트를 통과하지 못한다
+// (지시문_무료운세_톤수정_20260721.md §3-2-E, 실측 확인됨) — 그래서 임의로
+// 유료 예시를 재사용하지 않고 이 신규 예시를 초안으로 만들었다. 배포 전
+// 사장님 검수 필요.
+const FREE_FEW_SHOT_EXAMPLE = `헤드라인: "오늘은 시작한 일이 쑥쑥 자라나는 날이에요."
+
+심리 저격: 안녕, 두리예요. 그대는 새로운 걸 시작할 때 남들보다 겁이 없는 편이죠. 오늘은 그 씩씩한 마음이 유독 크게 도움이 되는 날이에요.
+
+오늘의 날씨: 오늘은 물이 많은 날이라, 그대라는 나무가 물을 잔뜩 머금고 쑥쑥 자랄 수 있어요. 다만 해가 약하니 중요한 결정은 해가 잘 드는 낮에 하는 게 좋아요.
+
+오늘의 흐름 — 오전: 아침엔 머리가 맑아서 새로운 생각이 잘 떠올라요. 오늘 시작하고 싶은 일이 있다면 아침에 첫 걸음을 떼어보세요. / 오후: 낮 1~3시는 해가 잘 들어서 중요한 결정을 하기에 딱 좋아요. 미뤄뒀던 약속이나 결정은 이 시간에 하세요. / 저녁: 저녁엔 몸이 좀 피곤할 수 있어요. 무리한 약속보다는 편하게 쉬는 시간을 가져보세요.
+
+오늘의 포인트 — 취할 것: 오늘은 새로 배우고 싶었던 것에 도전해보세요. 물어보고 싶었던 질문이 있다면 오늘 용기 내서 물어보세요. 작은 화분에 물을 주듯, 오늘 시작한 일에 조금씩 신경 써주면 잘 자랄 거예요. / 피할 것: 오늘은 너무 급하게 큰 결정을 내리지 마세요. 해가 약한 아침이나 저녁보다는 낮에 결정하는 게 좋아요. 몸이 피곤한데 무리해서 약속을 여러 개 잡지는 마세요.
+
+체감 체크: 오늘 저녁, 새로 시작한 일이 몇 개였는지 세어보세요.
+
+내일 예고+마무리: 내일은 오늘보다 차분한 하루가 될 거예요. 오늘 쑥쑥 자란 걸 내일은 잘 정리해보세요. 그대의 하루를 두리가 오늘도 응원할게요. 🐾`;
+
+const FREE_FEW_SHOT_WARNING =
+  "위 샘플은 문체·밀도·구조의 기준일 뿐이다. 비유(나무·물)와 시간대(오전/오후/저녁 내용)는 이 예시 전용 — 절대 복사하지 말고, 아래 [오행 비유] 블록과 입력된 명식·오늘 일진에서 새로 도출하라. 이 예시에는 명리 용어가 단 하나도 없다 — 실제 출력도 반드시 그래야 한다.";
+
+const FREE_FEW_SHOT_PSYCH_SNIPE_REFERENCE =
+  "안녕, 두리예요. 그대는 새로운 걸 시작할 때 남들보다 겁이 없는 편이죠. 오늘은 그 씩씩한 마음이 유독 크게 도움이 되는 날이에요.";
+
+type SharedPromptInput = {
   myeongsik: Myeongsik;
   manseryeokText?: string;
   birthDate: string;
@@ -244,7 +324,13 @@ export function buildTodayFortunePrompt(input: {
   ohengNote: string;
   goldenSijin: GoldenSijinResult;
   ctaTemplateId: CtaTemplateId;
-}): { system: string; user: string } {
+};
+type PaidPromptInput = SharedPromptInput & { variant?: "paid" };
+type FreePromptInput = SharedPromptInput & { variant: "free"; elementMetaphor: ElementMetaphor };
+export type TodayFortunePromptInput = PaidPromptInput | FreePromptInput;
+
+export function buildTodayFortunePrompt(input: TodayFortunePromptInput): { system: string; user: string } {
+  const isFree = input.variant === "free";
   const pillar = (p: { cheongan: string; jiji: string } | null) => (p ? `${p.cheongan}${p.jiji}` : "(시 미상)");
   const sajuSection = input.manseryeokText
     ? `[사주 풀 명식]\n${input.manseryeokText}`
@@ -262,8 +348,23 @@ export function buildTodayFortunePrompt(input: {
   안내는 절대 넣지 마라 — 이 문장은 코드가 CTA 템플릿의 "{summary}" 자리에 그대로 꽂는다.`
     : `- todaySummarySentence: 이번 판정에서는 사용하지 않는다. 필드 자체를 생략해도 된다.`;
 
-  const fewShotBlock = FEW_SHOT_EXAMPLE
-    ? `\n[모범 출력 예시 — 이 밀도와 구조를 그대로 따라라]\n${FEW_SHOT_EXAMPLE}\n\n⚠️ ${FEW_SHOT_WARNING}\n`
+  const fewShotBlock = isFree
+    ? `\n[모범 출력 예시 — 이 밀도와 구조를 그대로 따라라]\n${FREE_FEW_SHOT_EXAMPLE}\n\n⚠️ ${FREE_FEW_SHOT_WARNING}\n`
+    : FEW_SHOT_EXAMPLE
+      ? `\n[모범 출력 예시 — 이 밀도와 구조를 그대로 따라라]\n${FEW_SHOT_EXAMPLE}\n\n⚠️ ${FEW_SHOT_WARNING}\n`
+      : "";
+
+  const elementMetaphorBlock = isFree
+    ? `\n[오행 비유 — 코드가 계산한 확정값. weatherReason에 이 비유 명사와 문장을 그대로 또는 근접하게 반영하라]\n${formatElementMetaphorForPrompt(input.elementMetaphor)}\n`
+    : "";
+
+  const freeLanguageBlock = isFree
+    ? `\n[무료 운세 전용 — 언어 난이도 규칙. 반드시 지켜라]
+초등학교 3학년도 읽고 이해할 수 있는 말로만 쓴다.
+- 명리 용어·한자·괄호 병기를 headline뿐 아니라 본문 전체(psychSnipe/weatherReason/flow/point/check/tomorrow 포함)에서 단 하나도 쓰지 마라(사주/명식/일간/오행/대운/세운/합충/신강신약/격국/용신/희신/기신 등 전부 금지, 위 [오행 비유] 블록의 비유 표현으로만 오행을 설명하라).
+- 원국 성격 이야기는 psychSnipe 1~2문장으로만 제한한다 — 격국·신살·평생 흐름을 풀어서 서술하지 마라. 나머지 블록은 전부 "오늘 하루"의 이야기만 한다.
+- 한 문장에 한 가지 이야기만 담는다. 문장은 짧게 끊어 써라.
+`
     : "";
 
   const user = `[현재 시점]
@@ -287,7 +388,7 @@ ${FRAME_TEXT[input.dayTone]}
 [골든타임 — 코드가 계산한 확정값. 그대로 인용하라]
 ${input.goldenSijin.entry.label}(${input.goldenSijin.entry.cheongan}${input.goldenSijin.entry.jiji}) = ${input.goldenSijin.timeRangeLabel}
 ④ flow 서술 안에 "${input.goldenSijin.timeRangeLabel}" 문구를 반드시 포함해 골든타임을 특정하라.
-${fewShotBlock}
+${elementMetaphorBlock}${fewShotBlock}${freeLanguageBlock}
 [이번 상품 — 오늘의 운세, 퍼널 입구 상품. "880원인데 이렇게까지?" 를 목표로 과잉전달한다]
 총 1,100~1,400자, 아래 필드를 채운 JSON으로 작성한다.
 
@@ -305,12 +406,16 @@ ${fewShotBlock}
   분포·합충)에서 도출한 현재형 성격 진단 1~2문장("~하는 편이죠/~인 편이에요" 식 — 미래 예측이
   아니라 원래 그런 사람이라는 "아하 포인트"). 마지막 문장은 반드시 "오늘은 그 버릇이 유독
   ~한 날" 형태로 오늘과 연결해라. [모범 출력 예시]가 있다면 문체·구조만 참고하고 절대 베끼지 마라
-  — 이 사람의 실제 명식 데이터에서 새로 도출한 진단이어야 한다.
-- weatherReason: ③ 오늘의 날씨 판정 근거를 생활 언어로 1~2문장. "왜 오늘이 이런 날인지"를
-  명식 근거를 녹여 설명하되 여기서도 원어 나열보다 쉬운 말 위주로.
+  — 이 사람의 실제 명식 데이터에서 새로 도출한 진단이어야 한다.${isFree ? " 원국 성격 이야기는 이 블록 1~2문장으로 끝내고, 다른 블록에서는 절대 원국 성격을 다시 풀어쓰지 마라." : ""}
+- weatherReason: ③ 오늘의 날씨 판정 근거를 생활 언어로 1~2문장.${
+    isFree
+      ? ` 위 [오행 비유] 블록의 비유 명사와 문장을 반드시 그대로 또는 근접하게 포함해서 "왜 오늘이 이런 날인지"를 설명하라 — 오행 용어(목/화/토/금/수, 상생상극 등)는 절대 쓰지 말고 비유 문장으로만.`
+      : ` "왜 오늘이 이런 날인지"를 명식 근거를 녹여 설명하되 여기서도 원어 나열보다 쉬운 말 위주로.`
+  }
 - flow: ④ 오전/오후/저녁 각 2문장(총 4문장 이상). 위 [오늘 12시진] 표에서 해당 시간대
-  시진 간지를 근거로 인용하며 서술(오전=인시~사시, 오후=오시~신시, 저녁=유시~해시 대역
-  중 대표 시진 선택). 위에서 지정한 골든타임 문구는 해당 시간대 서술 안에 자연스럽게 포함.
+  시진 간지를 근거로 삼아 서술(오전=인시~사시, 오후=오시~신시, 저녁=유시~해시 대역
+  중 대표 시진 선택)하되,${isFree ? " 시진 이름(자시/축시/인시/묘시/진시/사시/오시/미시/신시/유시/술시/해시)은 명리 용어이므로 절대 쓰지 말고 반드시 현대 시간(예: \"오전 9시~11시\")으로만 표현하라." : " 시진 이름을 그대로 언급해도 된다."}
+  위에서 지정한 골든타임 문구는 해당 시간대 서술 안에 자연스럽게 포함.
 - goldenTimeLabel: 위 [골든타임]에서 코드가 준 시간대 문구를 그대로 복사한다.
 - point: ⑤ 오늘의 포인트 2영역. take(취할 것, 3~4문장)와 avoid(피할 것, 3~4문장) 각각
   구체적 행동 단위로 쓴다(예: "10만원 넘는 결제는 내일로 미루세요"). 저녁에 스스로 검증
@@ -350,12 +455,14 @@ JSON 외 다른 텍스트 절대 추가 금지.`;
 const MAX_ATTEMPTS = 5;
 
 export async function generateTodayFortuneWithRetry(
-  input: Parameters<typeof buildTodayFortunePrompt>[0],
+  input: TodayFortunePromptInput,
 ): Promise<{ result: TodayFortuneResult; provider: string; model: string }> {
   let prevIssues: string[] = [];
   let lastText = "";
   let provider = "";
   let model = "";
+  const validateOpts =
+    input.variant === "free" ? { variant: "free" as const, elementMetaphor: input.elementMetaphor } : undefined;
 
   for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
     const { system, user } = buildTodayFortunePrompt(input);
@@ -382,7 +489,7 @@ export async function generateTodayFortuneWithRetry(
       prevIssues = ["JSON 스키마 불일치 — 지정된 필드 구성을 정확히 지켜라"];
       continue;
     }
-    const issues = validateTodayFortune(parsed, input.dayTone, input.ctaTemplateId, input.goldenSijin.timeRangeLabel);
+    const issues = validateTodayFortune(parsed, input.dayTone, input.ctaTemplateId, input.goldenSijin.timeRangeLabel, validateOpts);
     if (issues.length === 0) {
       const teaserCta = assembleCta(input.ctaTemplateId, parsed.todaySummarySentence);
       return { result: { ...parsed, teaserCta }, provider, model };
@@ -392,4 +499,34 @@ export async function generateTodayFortuneWithRetry(
   }
 
   throw new Error(`today-fortune 생성 실패 — ${MAX_ATTEMPTS}회 연속 실패. 마지막 응답 앞 300자: ${lastText.slice(0, 300)}`);
+}
+
+/**
+ * 8블록 JSON을 감사/폴백용 마크다운 문자열로 펼친다. confirm/route.ts(유료)와
+ * free-fortune/route.ts(무료) 양쪽이 동일 로직을 쓰도록 공용화 — teaser가 빈
+ * 문자열(무료, ctaTemplateId="NONE")이면 CTA 줄을 건너뛴다.
+ */
+export function formatTodayFortuneAsMarkdown(sections: TodayFortuneResult): string {
+  const lines = [
+    `## ${sections.headline}`,
+    ``,
+    sections.psychSnipe,
+    ``,
+    sections.weatherReason,
+    ``,
+    `**오전** ${sections.flow.morning}`,
+    `**오후** ${sections.flow.afternoon}`,
+    `**저녁** ${sections.flow.evening}`,
+    `**골든타임** ${sections.goldenTimeLabel}`,
+    ``,
+    `**취할 것**: ${sections.point.take}`,
+    `**피할 것**: ${sections.point.avoid}`,
+    ``,
+    sections.check,
+  ];
+  if (sections.teaserCta.teaser) {
+    lines.push(``, sections.teaserCta.teaser);
+  }
+  lines.push(``, `**내일** ${sections.tomorrow}`);
+  return lines.join("\n");
 }

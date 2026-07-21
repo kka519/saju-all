@@ -70,7 +70,7 @@ export default function RefundPolicyPage() {
         사용하여 성년자로 믿게 한 경우에는 취소가 제한됩니다.
       </p>
 
-      <p className="mt-8 text-sm text-mute">시행일: {businessInfo.effectiveDate}</p>
+      <p className="mt-8 text-sm text-night-fg-muted">시행일: {businessInfo.effectiveDate}</p>
     </div>
   );
 }

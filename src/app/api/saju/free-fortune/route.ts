@@ -3,9 +3,13 @@
 // =====================================================
 // 회원가입 퍼널 화면 6 — 무료 운세 미리보기(비로그인) + 로그인 사용자의 "오늘의
 // 무료 운세" 매일 진입점(지시문_무료운세일일제한_20260717.md) 공용 엔드포인트.
-// 호기심 자극 톤 한 문단(5~7문장) 마크다운 텍스트 반환.
-// SYSTEM_BASE는 그대로(두리 톤) + user 프롬프트에 호기심 자극 instruction append.
-// buildSajuPrompt(5섹션 JSON 강제)는 사용하지 않음 — 무료 미리보기엔 한 문단 텍스트가 적합.
+//
+// 2026-07-21 재작성 — 기존엔 SYSTEM_BASE + 임시 지시문(FREE_FORTUNE_INSTRUCTION)으로
+// 평생 원국 풀이(격국·신살·십성)를 내보내고 있었다(사양 위반, 실측 확인됨).
+// 지금은 유료 today-fortune(₩880)과 동일한 오늘 일진 기반 8블록 파이프라인을
+// today-fortune-prompt.ts의 free variant로 재사용한다 — 오늘 일진·톤·골든타임·
+// 오행 비유는 전부 코드가 계산해 확정값으로 주입하고(진실 원천 단일화),
+// LLM은 초등학교 3학년도 이해할 수 있는 언어로 해석만 한다.
 //
 // 하루 1회 제한(①③): 로그인은 계정, 비로그인은 쿠키(ffid) 기준 1일 1회 + IP 기준
 // 1일 5회 상한을 병행 — 둘 중 하나만 걸려도 동일한 안내 문구로 차단한다(어느 쪽
@@ -18,12 +22,17 @@ import { z } from "zod";
 import {
   fetchSajuAnalysis,
   formatSajuToManseryeok,
+  ganjiToMyeongsik,
   isSajuApiConfigured,
   SajuApiError,
   type BirthInfo,
 } from "@/lib/saju/saju-api";
-import { SYSTEM_BASE } from "@/lib/saju/prompt";
-import { generateInterpretation } from "@/lib/saju/llm";
+import { fetchDayGanji, analyzeDayTone, findGoldenSijin } from "@/lib/saju/today-ganji";
+import { computeSijinTable } from "@/lib/saju/sijin";
+import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
+import { computeElementMetaphor } from "@/lib/saju/element-metaphor";
+import { generateTodayFortuneWithRetry, formatTodayFortuneAsMarkdown } from "@/lib/saju/today-fortune-prompt";
+import type { Oheng } from "@/lib/saju/derived";
 import { getCurrentUser } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase/server";
 import {
@@ -50,24 +59,6 @@ const bodySchema = z.object({
   concerns: z.array(z.string()).optional().default([]),
   name: z.string().optional(),
 });
-
-const FREE_FORTUNE_INSTRUCTION = `
-
-[무료 운세 미리보기 — 호기심 자극 톤]
-한 문단 5~7문장으로 작성하세요. 다음 톤을 반드시 준수합니다:
-
-- 두리가 깜짝 놀란 듯한 인사로 시작 (예: "어머!", "와!", "잠깐!").
-- 사용자가 "오, 진짜 내 얘기네!" 라고 느끼게 구체적으로 풀어주세요.
-- 명리학 용어(천간지지, 일주, 격국, 신살, 십성 등)는 자연스럽게 포함하고 반드시 **굵게** 강조합니다.
-- **굵게** 마커 안쪽에 공백/줄바꿈을 절대 넣지 마세요. 별표와 내용 사이에 공백이 있으면 렌더가 깨집니다.
-  - 맞음: **경금(庚金)** 일간
-  - 틀림: ** 경금(庚金) ** 일간
-  - 틀림: ** 경금(庚金)** 일간
-  - 틀림: **경금(庚金) ** 일간
-- 사용자가 선택한 [관심사]가 있다면 그쪽 흐름을 중심으로 풀어주세요.
-- 마지막 문장은 호기심을 자극하며 끝냅니다 (예: "...더 자세한 건 두리만 알고 있어요 ✨").
-- 결제·가입 유도 문구는 절대 넣지 마세요 (CTA는 별도 UI에서 처리).
-- JSON 출력 X. 마크다운 코드블록(\`\`\`) X. 단일 한국어 마크다운 문단만 반환.`;
 
 const RATE_LIMIT_MESSAGE = "오늘의 무료 운세는 이미 받으셨어요. 내일 다시 만나요 🌙 더 깊은 풀이가 궁금하다면 유료 상품도 만나보세요.";
 
@@ -118,8 +109,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  let { birthInfo, name } = parsed.data;
-  const { concerns } = parsed.data;
+  let { birthInfo } = parsed.data;
   const service = createServiceClient();
 
   if (currentUser) {
@@ -161,7 +151,6 @@ export async function POST(req: NextRequest) {
         calendar: profile.calendar,
         is_leap_month: profile.is_leap_month,
       });
-      name = name ?? profile.display_name ?? undefined;
     }
   }
 
@@ -187,11 +176,14 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // 1) 만세력 API
+  // 1) 만세력 API — 오늘 일진 파이프라인이 필요로 하는 4기둥(Myeongsik)까지 함께 뽑는다.
   let manseryeokText: string;
+  let myeongsik: ReturnType<typeof ganjiToMyeongsik>;
+  let fullAnalysis: Awaited<ReturnType<typeof fetchSajuAnalysis>>;
   try {
-    const analysis = await fetchSajuAnalysis(birthInfo, [], { source: "demo" });
-    manseryeokText = formatSajuToManseryeok(analysis, birthInfo);
+    fullAnalysis = await fetchSajuAnalysis(birthInfo, [], { source: "demo" });
+    manseryeokText = formatSajuToManseryeok(fullAnalysis, birthInfo);
+    myeongsik = ganjiToMyeongsik(fullAnalysis);
   } catch (err) {
     const upstream = err instanceof SajuApiError ? err.status : undefined;
     return NextResponse.json(
@@ -204,24 +196,63 @@ export async function POST(req: NextRequest) {
       { status: upstream && upstream >= 400 && upstream < 600 ? upstream : 502 },
     );
   }
+  if (!myeongsik) {
+    // 결제 후 확정 경로(confirm/route.ts)는 mock 명식으로 폴백하지만, 무료 미리보기는
+    // 결제 전이라 억지로 결과를 만들어낼 이유가 없다 — 실패로 처리하고 재시도를 유도한다.
+    return NextResponse.json(
+      {
+        ok: false as const,
+        stage: "api-error" as const,
+        error: "두리가 잠시 별을 못 찾았어요. 다시 시도해주세요.",
+        detail: "ganji missing in saju API response",
+      },
+      { status: 502 },
+    );
+  }
 
-  // 2) LLM — 호기심 자극 톤 한 문단
-  const user =
-    `[기본 정보]\n` +
-    (name ? `사용자: ${name}님\n` : "") +
-    (concerns.length > 0 ? `관심사: ${concerns.join(", ")}\n\n` : "\n") +
-    `[명식]\n${manseryeokText}` +
-    FREE_FORTUNE_INSTRUCTION;
+  // 2) 오늘 일진·톤·골든타임·오행 비유 — 전부 코드가 계산(유료 today-fortune과 동일 파이프라인).
+  const today = new Date();
+  const tomorrow = new Date(today.getTime() + 24 * 60 * 60 * 1000);
+  const [todayGanji, tomorrowGanji] = await Promise.all([fetchDayGanji(today), fetchDayGanji(tomorrow)]);
+  const sijinTable = computeSijinTable(todayGanji.cheongan);
+  const view = buildMyeongsikView(myeongsik, fullAnalysis);
+  const { tone: dayTone, relations, ohengNote } = analyzeDayTone(todayGanji, myeongsik, {
+    yongsinOheng: view.yongsin?.오행 as Oheng | undefined,
+    huisinOheng: view.gyeokguk?.희신오행 as Oheng | undefined,
+    gisinOheng: view.gyeokguk?.기신오행 as Oheng | undefined,
+  });
+  const goldenSijin = findGoldenSijin(sijinTable, myeongsik, {
+    yongsinOheng: view.yongsin?.오행 as Oheng | undefined,
+    huisinOheng: view.gyeokguk?.희신오행 as Oheng | undefined,
+    gisinOheng: view.gyeokguk?.기신오행 as Oheng | undefined,
+  });
+  const elementMetaphor = computeElementMetaphor(myeongsik.day.cheongan, todayGanji.cheongan);
+  const birthDate = `${birthInfo.birthYear}-${birthInfo.birthMonth.padStart(2, "0")}-${birthInfo.birthDay.padStart(2, "0")}`;
 
+  // 3) LLM — free variant(초3 언어 + 본문 전체 용어 0개 + 오행 비유), CTA 없음(화면에 별도 버튼).
   try {
-    const llm = await generateInterpretation({ system: SYSTEM_BASE, user });
-    // 가끔 모델이 코드블록으로 감싸는 경우 안전하게 제거
-    const fortune = stripCodeFence(llm.text).trim();
+    const { result } = await generateTodayFortuneWithRetry({
+      myeongsik,
+      manseryeokText,
+      birthDate,
+      gender: birthInfo.gender,
+      todayGanji,
+      tomorrowGanji,
+      sijinTable,
+      dayTone,
+      relations,
+      ohengNote,
+      goldenSijin,
+      ctaTemplateId: "NONE",
+      variant: "free",
+      elementMetaphor,
+    });
+    const fortune = formatTodayFortuneAsMarkdown(result);
     await recordFreeFortuneUsage({ identityKey, ip });
     return NextResponse.json({
       ok: true as const,
       fortune,
-      meta: { provider: llm.provider, model: llm.model },
+      meta: { dayTone: result.dayTone },
     });
   } catch (err) {
     return NextResponse.json(
@@ -234,10 +265,4 @@ export async function POST(req: NextRequest) {
       { status: 502 },
     );
   }
-}
-
-// ```...``` 형태로 LLM이 한 번 감싸오는 케이스 흡수.
-function stripCodeFence(text: string): string {
-  const fence = text.match(/```(?:markdown|md)?\s*([\s\S]*?)```/);
-  return fence?.[1] ?? text;
 }

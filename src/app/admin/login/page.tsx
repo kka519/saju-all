@@ -31,11 +31,11 @@ export default async function AdminLoginPage({ searchParams }: { searchParams: S
   return (
     <div className="container py-16 max-w-sm">
       <header className="mb-8">
-        <p className="text-xs font-mono text-mute mb-2">ADMIN</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">ADMIN</p>
         <h1 className="text-2xl font-semibold tracking-tight">관리자 로그인</h1>
-        <p className="mt-2 text-sm text-body">
-          <code className="font-mono text-ink">.env.local</code> 에 설정한{" "}
-          <code className="font-mono text-ink">ADMIN_PASSWORD</code> 를 입력하세요.
+        <p className="mt-2 text-sm text-night-fg-soft">
+          <code className="font-mono text-night-fg">.env.local</code> 에 설정한{" "}
+          <code className="font-mono text-night-fg">ADMIN_PASSWORD</code> 를 입력하세요.
         </p>
       </header>
 

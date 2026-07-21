@@ -11,7 +11,7 @@
 
 import type { DayTone } from "./today-ganji";
 
-export type CtaTemplateId = "R1" | "R2" | "L1" | "L2";
+export type CtaTemplateId = "R1" | "R2" | "L1" | "L2" | "NONE";
 export type CtaRouting = "report" | "love";
 
 export type CtaTemplate = {
@@ -40,6 +40,12 @@ export const CTA_TEMPLATES: Record<CtaTemplateId, CtaTemplate> = {
     needsSummary: false,
     ctaLabel: "내 마음의 기후 보기",
     body: "오늘은 하루의 날씨만 봤어요. 날씨 말고 기후가 궁금하지 않으세요? 그대가 어떤 사람 앞에서 흔들리고, 어떤 사람 옆에서 단단해지는지는 명식 전체를 펼쳐야 보여요.",
+  },
+  // 무료 운세 전용 — CTA 없음. 화면 쪽에 이미 별도 업셀 버튼이 있어 본문에 CTA 문구를 넣지 않는다.
+  NONE: {
+    needsSummary: false,
+    ctaLabel: "",
+    body: "",
   },
 };
 

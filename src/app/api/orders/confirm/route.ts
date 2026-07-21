@@ -9,7 +9,7 @@ import { computeZiweiForSlug, type ZiweiSummary } from "@/lib/saju/ziwei";
 import { sajuInputToZiweiInput } from "@/lib/saju/route-adapters";
 import { fetchDayGanji, analyzeDayTone, findGoldenSijin, routeCtaSlug } from "@/lib/saju/today-ganji";
 import { computeSijinTable } from "@/lib/saju/sijin";
-import { generateTodayFortuneWithRetry } from "@/lib/saju/today-fortune-prompt";
+import { generateTodayFortuneWithRetry, formatTodayFortuneAsMarkdown } from "@/lib/saju/today-fortune-prompt";
 import { pickCtaTemplate, toCtaRouting } from "@/lib/saju/cta-templates";
 import { buildMyeongsikView } from "@/lib/saju/build-myeongsik-view";
 import type { Oheng } from "@/lib/saju/derived";
@@ -190,27 +190,8 @@ export async function POST(request: NextRequest) {
       });
 
       // interpretation_md 는 not null 컬럼이라 감사/폴백용으로 8블록을 펼친 마크다운도 채운다.
-      const flattenedMd = [
-        `## ${sections.headline}`,
-        ``,
-        sections.psychSnipe,
-        ``,
-        sections.weatherReason,
-        ``,
-        `**오전** ${sections.flow.morning}`,
-        `**오후** ${sections.flow.afternoon}`,
-        `**저녁** ${sections.flow.evening}`,
-        `**골든타임** ${sections.goldenTimeLabel}`,
-        ``,
-        `**취할 것**: ${sections.point.take}`,
-        `**피할 것**: ${sections.point.avoid}`,
-        ``,
-        sections.check,
-        ``,
-        sections.teaserCta.teaser,
-        ``,
-        `**내일** ${sections.tomorrow}`,
-      ].join("\n");
+      // free-fortune/route.ts와 동일 포맷터 재사용 — 두 경로의 마크다운 조립이 갈라지지 않게.
+      const flattenedMd = formatTodayFortuneAsMarkdown(sections);
 
       const { data: savedResult, error: resultErr } = await service
         .from("saju_results")

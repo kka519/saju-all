@@ -25,7 +25,11 @@ export function Hero({ isLoggedIn }: { isLoggedIn: boolean }) {
         />
       </div>
       <h1 className="text-[34px] md:text-[44px] font-semibold tracking-tight leading-[1.1] text-night-fg">
-        {siteConfig.tagline}
+        {siteConfig.tagline.split(", ").map((line, i) => (
+          <span key={i} className="block">
+            {i === 0 ? `${line},` : line}
+          </span>
+        ))}
       </h1>
       <p className="mt-5 text-[15px] text-night-fg-soft max-w-md mx-auto">
         {siteConfig.description}

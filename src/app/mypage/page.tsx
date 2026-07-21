@@ -24,11 +24,11 @@ export default async function MyPage() {
   return (
     <div className="container py-12 max-w-xl">
       <header className="mb-10">
-        <p className="text-xs font-mono text-mute mb-2">ACCOUNT</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">ACCOUNT</p>
         <h1 className="text-2xl font-semibold tracking-tight">
           {profile?.display_name ?? user.email}
         </h1>
-        <p className="text-sm text-body mt-1">{profile?.email ?? user.email}</p>
+        <p className="text-sm text-night-fg-soft mt-1">{profile?.email ?? user.email}</p>
       </header>
 
       <ul className="divide-y divide-hairline border-y border-hairline">
@@ -36,10 +36,10 @@ export default async function MyPage() {
           <li key={item.href}>
             <Link
               href={item.href}
-              className="flex items-center justify-between py-4 text-[15px] font-medium text-ink hover:text-body"
+              className="flex items-center justify-between py-4 text-[15px] font-medium text-night-fg hover:text-night-fg-soft"
             >
               <span>{item.label}</span>
-              <span className="text-mute">→</span>
+              <span className="text-night-fg-muted">→</span>
             </Link>
           </li>
         ))}
@@ -47,7 +47,7 @@ export default async function MyPage() {
           <form action="/api/auth/signout" method="post">
             <button
               type="submit"
-              className="w-full flex items-center justify-between py-4 text-[15px] font-medium text-body hover:text-ink"
+              className="w-full flex items-center justify-between py-4 text-[15px] font-medium text-night-fg-soft hover:text-night-fg"
             >
               <span>로그아웃</span>
             </button>

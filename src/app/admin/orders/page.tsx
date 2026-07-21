@@ -74,7 +74,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   return (
     <div className="container py-12">
       <header className="mb-8">
-        <p className="text-xs font-mono text-mute mb-2">ADMIN / ORDERS</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">ADMIN / ORDERS</p>
         <h1 className="text-2xl font-semibold tracking-tight">결제 내역</h1>
       </header>
 
@@ -93,7 +93,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
             <Link
               key={f.key || "all"}
               href={f.key ? `/admin/orders?status=${f.key}` : "/admin/orders"}
-              className={`px-4 h-8 inline-flex items-center rounded-full text-sm border transition-colors ${active ? "bg-ink text-canvas border-ink" : "border-hairline text-ink hover:border-ink"}`}
+              className={`px-4 h-8 inline-flex items-center rounded-full text-sm border transition-colors ${active ? "bg-ink text-canvas border-ink" : "border-hairline text-night-fg hover:border-night-fg"}`}
             >
               {f.label}
             </Link>
@@ -101,30 +101,30 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
         })}
       </div>
 
-      <p className="text-xs text-mute font-mono mb-3">{orders.length} ROWS</p>
+      <p className="text-xs text-night-fg-muted font-mono mb-3">{orders.length} ROWS</p>
 
       <div className="border border-hairline rounded-lg overflow-hidden">
         {orders.length === 0 ? (
-          <div className="py-16 text-center text-sm text-mute">
+          <div className="py-16 text-center text-sm text-night-fg-muted">
             {demoMode ? "데모 모드에서는 결제 내역이 비어 있습니다." : "조건에 맞는 결제 내역이 없습니다."}
           </div>
         ) : (
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-hairline">
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">생성일</th>
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">주문번호</th>
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">상품</th>
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">고객</th>
-              <th className="px-4 py-3 text-right text-[11px] font-mono uppercase tracking-wider text-mute">금액</th>
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">상태</th>
-              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-mute">결과</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">생성일</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">주문번호</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">상품</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">고객</th>
+              <th className="px-4 py-3 text-right text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">금액</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">상태</th>
+              <th className="px-4 py-3 text-left text-[11px] font-mono uppercase tracking-wider text-night-fg-muted">결과</th>
             </tr>
           </thead>
           <tbody>
             {orders.map((o) => (
               <tr key={o.id} className="border-b border-hairline last:border-0">
-                <td className="px-4 py-3 text-xs text-body">{formatDate(o.created_at)}</td>
+                <td className="px-4 py-3 text-xs text-night-fg-soft">{formatDate(o.created_at)}</td>
                 <td className="px-4 py-3 font-mono text-xs">{o.order_id}</td>
                 <td className="px-4 py-3">{productMap.get(o.product_id) ?? "-"}</td>
                 <td className="px-4 py-3 text-xs">{o.user_id ? "회원" : o.guest_email}</td>
@@ -144,7 +144,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
                       보기
                     </Link>
                   ) : (
-                    <span className="text-xs text-mute">-</span>
+                    <span className="text-xs text-night-fg-muted">-</span>
                   )}
                 </td>
               </tr>

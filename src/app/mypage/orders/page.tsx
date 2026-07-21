@@ -44,12 +44,12 @@ export default async function MyOrdersPage() {
   return (
     <div className="container py-12 max-w-3xl">
       <header className="mb-8">
-        <p className="text-xs font-mono text-mute mb-2">ORDERS</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">ORDERS</p>
         <h1 className="text-2xl font-semibold tracking-tight">결제 내역</h1>
       </header>
 
       {!orders || orders.length === 0 ? (
-        <div className="text-center py-20 text-sm text-body">
+        <div className="text-center py-20 text-sm text-night-fg-soft">
           아직 결제 내역이 없어요.
         </div>
       ) : (
@@ -60,10 +60,10 @@ export default async function MyOrdersPage() {
             return (
               <li key={o.id} className="py-5 flex items-center justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="font-medium text-ink truncate">
+                  <p className="font-medium text-night-fg truncate">
                     {productMap.get(o.product_id) ?? "-"}
                   </p>
-                  <p className="text-xs text-body mt-1">
+                  <p className="text-xs text-night-fg-soft mt-1">
                     {formatDate(o.created_at)} · <span className="font-mono">{formatKRW(o.amount)}</span>
                   </p>
                 </div>
@@ -76,14 +76,14 @@ export default async function MyOrdersPage() {
                     {STATUS_LABEL[o.status] ?? o.status}
                   </Badge>
                   {resultId && (
-                    <Link href={`/results/${resultId}`} className="text-sm font-medium underline underline-offset-4 text-ink">
+                    <Link href={`/results/${resultId}`} className="text-sm font-medium underline underline-offset-4 text-night-fg">
                       결과 보기
                     </Link>
                   )}
                   {canReview && (
                     <Link
                       href={`/mypage/orders/${o.id}/review`}
-                      className="text-sm font-medium underline underline-offset-4 text-ink"
+                      className="text-sm font-medium underline underline-offset-4 text-night-fg"
                     >
                       후기 쓰기
                     </Link>

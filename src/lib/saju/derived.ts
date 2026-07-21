@@ -167,6 +167,30 @@ export function getJijiOheng(j: string): Oheng | undefined {
 }
 
 /**
+ * 오행 상생(相生) — key 오행이 value 오행을 생(生)한다.
+ * 목생화·화생토·토생금·금생수·수생목.
+ */
+export const OHAENG_GENERATES: Record<Oheng, Oheng> = {
+  목: "화",
+  화: "토",
+  토: "금",
+  금: "수",
+  수: "목",
+};
+
+/**
+ * 오행 상극(相剋) — key 오행이 value 오행을 극(剋)한다.
+ * 목극토·화극금·토극수·금극목·수극화.
+ */
+export const OHAENG_OVERCOMES: Record<Oheng, Oheng> = {
+  목: "토",
+  화: "금",
+  토: "수",
+  금: "목",
+  수: "화",
+};
+
+/**
  * myeongsik 의 8글자(천간 4 + 지지 4)에서 오행 개수 집계.
  *
  * - 시 미상(hour === null) 시 6글자만 집계 (해당 칸 무시).

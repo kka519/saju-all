@@ -82,7 +82,7 @@ export default async function WriteReviewPage({
   return (
     <div className="container py-12 max-w-xl">
       <header className="mb-8">
-        <p className="text-xs font-mono text-mute mb-2">REVIEW</p>
+        <p className="text-xs font-mono text-night-fg-muted mb-2">REVIEW</p>
         <h1 className="text-2xl font-semibold tracking-tight">후기 작성</h1>
       </header>
       <Card>
