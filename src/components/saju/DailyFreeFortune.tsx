@@ -251,9 +251,9 @@ export function DailyFreeFortune({
             </p>
             <Link
               href="/products/today-fortune"
-              className="block w-full h-12 rounded-full bg-starlight text-night-primary text-base font-medium leading-[3rem] hover:bg-starlight-soft transition-colors"
+              className="block w-full h-12 rounded-full bg-starlight text-night-primary text-base font-medium leading-[3rem] text-center hover:bg-starlight-soft transition-colors"
             >
-              880원 풀이 보러 가기
+              더 깊은 풀이 열어보기
             </Link>
           </div>
         </div>
