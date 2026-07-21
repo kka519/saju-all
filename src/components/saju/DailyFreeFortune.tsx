@@ -67,6 +67,10 @@ export function DailyFreeFortune({
   async function callApi(birthInfo?: BirthInfoPayload) {
     setState("loading");
     setErrorMsg("");
+    // 폼이 길어서(생년월일+시간+달력+성별) 제출 시점에 스크롤이 아래로 내려가
+    // 있는 경우가 많다 — 로딩/결과 화면은 페이지 최상단에 렌더되므로 매번
+    // 상단으로 스크롤해 첫 화면이 빈 밤하늘로 보이지 않게 한다.
+    window.scrollTo({ top: 0 });
     try {
       const res = await fetch("/api/saju/free-fortune", {
         method: "POST",
@@ -77,21 +81,26 @@ export function DailyFreeFortune({
       if (!json.ok) {
         if (json.stage === "rate-limited") {
           setState("rate-limited");
+          window.scrollTo({ top: 0 });
           return;
         }
         if (json.stage === "no-saved-birth-info") {
           setState("form");
+          window.scrollTo({ top: 0 });
           return;
         }
         setErrorMsg(json.error || "알 수 없는 오류가 났어요.");
         setState("error");
+        window.scrollTo({ top: 0 });
         return;
       }
       setFortune(json.fortune);
       setState("success");
+      window.scrollTo({ top: 0 });
     } catch {
       setErrorMsg("별빛 신호가 끊겼어요. 인터넷을 확인하고 다시 시도해주세요.");
       setState("error");
+      window.scrollTo({ top: 0 });
     }
   }
 
